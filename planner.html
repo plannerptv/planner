@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <meta charset="UTF-8">
+    <title>PTV Hospital Planning (Menu Unificato)</title>
+    <script>
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'css/index-style.css?t=' + Date.now();
+    document.head.appendChild(link);
+</script>
+    <link rel="icon" type="image/x-icon" href="Calendario.ico">
+</head>
+
+<body>
+    <div id="moveBar" class="move-bar">⚠️ SPOSTAMENTO ATTIVO — clicca uno slot vuoto per spostare | ESC per annullare
+    </div>
+
+    <div id="customContextMenu">
+        <div class="ctx-item" onclick="applyQuickAction('PAUSA')">☕ Metti in PAUSA</div>
+        <div class="ctx-item" onclick="applyQuickAction('BLOCCATO')">🚫 BLOCCA Slot</div>
+        <div class="ctx-divider"></div>
+        <div class="ctx-item" onclick="applyQuickAction('UNLOCK')">🔓 SBLOCCA / RIPRISTINA</div>
+        <div class="ctx-divider"></div>
+        <div class="ctx-item" onclick="closeContextMenu()">❌ Chiudi Menu</div>
+    </div>
+
+    <header class="app-header">
+        <h3>🏥 PLANNING <span style="color:var(--accent);" title="Build: 20250208-001 | Refresh cache: CTRL+F5">v18.5.1</span></h3>
+        <div style="display:flex; gap:6px; align-items:center; width:100%;">
+            <!-- DATA ESTESA ALLINEATA A SINISTRA -->
+            <div id="displayDate" style="background:white; padding:3px 6px; border-radius:5px; font-weight:bold; font-size:11px; margin-right:auto;"></div>
+            
+            <!-- ANNULLA BACKUP STAMPA CERCA -->
+            <button id="undoBtn" class="btn-undo" disabled onclick="undoAction()" 
+                style="background:#ef4444; color:white; padding:3px 6px; font-size:11px;">↩️ ANNULLA</button>
+            <button class="btn-action"
+                style="background:#10b981; color:white; padding:3px 6px; font-size:11px;"
+                onclick="quickBackup()" title="Backup veloce di tutto">💾 BACKUP</button>
+            <button class="btn-action"
+                style="background:#8b5cf6; color:white; padding:3px 6px; font-size:11px;"
+                onclick="openPrintModal()" title="Stampa planning">🖨️ STAMPA</button>
+            <button class="btn-action"
+                style="background:#f59e0b; color:white; padding:3px 6px; font-size:11px; margin-right:80px;"
+                onclick="openSearchModal()">🔍 CERCA</button>
+            <button class="btn-action"
+                style="background:#0891b2; color:white; padding:3px 6px; font-size:11px;"
+                onclick="openStoricoModal()" title="Consulta appuntamenti archiviati">🗄️ STORICO</button>
+
+            <!-- BLOCCO DATE -->
+            <button class="btn-action" style="background:#334155; color:white; padding:3px 6px; font-size:11px;"
+                onclick="changeDate(-7)">-7gg</button>
+            <button class="btn-action" style="background:#334155; color:white; padding:3px 6px; font-size:11px;"
+                onclick="changeDate(-1)">◀ IERI</button>
+            <input type="date" id="datePicker" onchange="jumpToDate(this.value)"
+                style="border:none; padding:2px; border-radius:5px; font-weight:bold; font-size:12px; width:88px;">
+            <button class="btn-action" style="background:#334155; color:white; padding:3px 6px; font-size:11px;"
+                onclick="changeDate(1)">DOMANI ▶</button>
+            <button class="btn-action" style="background:#334155; color:white; padding:3px 6px; font-size:11px;"
+                onclick="changeDate(7)">+7gg</button>
+            <button class="btn-action" style="background:var(--accent); color:white; padding:3px 6px; font-size:11px; margin-right:80px;"
+                onclick="goToday()">OGGI</button>
+
+            <!-- ADMIN PASSWORD -->
+            <button class="btn-action"
+                style="background:#475569; color:white; padding:3px 6px; font-size:11px;"
+                onclick="window.open('admin.html', '_blank')">⚙️ ADMIN</button>
+            <button class="btn-action"
+                style="background:#ef4444; color:white; padding:3px 6px; font-size:11px; margin-right:80px;"
+                onclick="changePassword()" title="Cambia password di accesso">🔐 PASSWORD</button>
+
+            <!-- ZOOM -->
+            <button class="btn-action" id="zoomOutBtn"
+                style="background:#64748b; color:white; padding:3px 6px; font-size:11px;"
+                onclick="zoomOut()" title="Zoom Out - Celle più piccole">🔍➖</button>
+            <span id="zoomLevel"
+                style="font-size:11px; color:#64748b; font-weight:700; min-width:40px; text-align:center;">110%</span>
+            <button class="btn-action" id="zoomInBtn"
+                style="background:#64748b; color:white; padding:3px 6px; font-size:11px;" onclick="zoomIn()"
+                title="Zoom In - Celle più grandi">🔍➕</button>
+        </div>
+    </header>
+    <div class="grid-wrapper">
+        <div id="calendarGrid" class="grid-container"></div>
+    </div>
+
+    <div id="modalRule" class="modal">
+        <div class="modal-content">
+            <div class="panel-left">
+                <!-- INDICATORE STATUS REGOLA -->
+                <div id="ruleStatusIndicator"></div>
+
+                <h4 style="margin:0 0 12px 0; font-size:13px; color:var(--primary);">1. IDENTITÀ & RICORRENZA</h4>
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                    <div><label style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase;">Nome
+                            Stanza (override)</label>
+                        <input type="text" id="ruleRoomNameOverride" placeholder="es. Ambulatorio 1..."
+                            style="width:100%; padding:8px; border-radius:6px; border:1px solid #ddd; box-sizing:border-box;">
+                    </div>
+                    <div><label style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase;">Nome
+                            Regola</label>
+                        <input type="text" id="ruleName" placeholder="es. Orario Estivo..."
+                            style="width:100%; padding:8px; border-radius:6px; border:1px solid #ddd; box-sizing:border-box; font-weight:bold;">
+                    </div>
+                </div>
+                <select id="ruleFreq" onchange="toggleFreqUI()"
+                    style="width:100%; padding:9px; border-radius:8px; margin:12px 0 8px; font-weight:bold; border:2px solid var(--accent);">
+                    <option value="weekly">SETTIMANALE</option>
+                    <option value="biweekly">BISETTIMANALE (settimane alterne)</option>
+                    <option value="monthly_specific">MENSILE (Giorni specifici)</option>
+                    <option value="once">DATA SINGOLA</option>
+                </select>
+                <div id="uiSettimanale" style="display:grid; grid-template-columns: repeat(4, 1fr); gap:5px;">
+                    <div class="btn-check" data-wd="1" onclick="toggleWd(this)">LUN</div>
+                    <div class="btn-check" data-wd="2" onclick="toggleWd(this)">MAR</div>
+                    <div class="btn-check" data-wd="3" onclick="toggleWd(this)">MER</div>
+                    <div class="btn-check" data-wd="4" onclick="toggleWd(this)">GIO</div>
+                    <div class="btn-check" data-wd="5" onclick="toggleWd(this)">VEN</div>
+                    <div class="btn-check" data-wd="6" onclick="toggleWd(this)">SAB</div>
+                    <div class="btn-check" data-wd="7" onclick="toggleWd(this)">DOM</div>
+                </div>
+                <div id="uiBiweekly" style="display:none; margin-top:10px;">
+                    <label style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; display:block; margin-bottom:8px;">
+                        GIORNI DELLA SETTIMANA
+                    </label>
+                    <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:5px; margin-bottom:12px;">
+                        <div class="btn-check" data-bwd="1" onclick="toggleBiweeklyWd(this)">LUN</div>
+                        <div class="btn-check" data-bwd="2" onclick="toggleBiweeklyWd(this)">MAR</div>
+                        <div class="btn-check" data-bwd="3" onclick="toggleBiweeklyWd(this)">MER</div>
+                        <div class="btn-check" data-bwd="4" onclick="toggleBiweeklyWd(this)">GIO</div>
+                        <div class="btn-check" data-bwd="5" onclick="toggleBiweeklyWd(this)">VEN</div>
+                        <div class="btn-check" data-bwd="6" onclick="toggleBiweeklyWd(this)">SAB</div>
+                        <div class="btn-check" data-bwd="7" onclick="toggleBiweeklyWd(this)">DOM</div>
+                    </div>
+                    <label style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; display:block; margin-bottom:8px;">
+                        📅 DATA DI RIFERIMENTO (settimana "SÌ")
+                    </label>
+                    <input type="date" id="biweeklyAnchor"
+                        style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; box-sizing:border-box; margin-bottom:8px;">
+                    <div style="font-size:11px; color:#64748b; background:#f0f9ff; padding:8px; border-radius:6px; border-left:3px solid var(--accent); line-height:1.5;">
+                        <strong>Come funziona:</strong> La regola si applica nella settimana della data scelta e poi <strong>a settimane alterne</strong> (una sì, una no).
+                        <br>Es: se scegli un giovedì → quel giovedì SÌ, il prossimo NO, quello dopo SÌ, ecc.
+                    </div>
+                </div>
+                <div id="uiMonthlySpecific" style="display:none; margin-top:10px;">
+                    <label style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; display:block; margin-bottom:8px;">
+                        GIORNI DELLA SETTIMANA
+                    </label>
+                    <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:5px; margin-bottom:12px;">
+                        <div class="btn-check" data-wd="1" onclick="toggleMonthlyWd(this)">LUN</div>
+                        <div class="btn-check" data-wd="2" onclick="toggleMonthlyWd(this)">MAR</div>
+                        <div class="btn-check" data-wd="3" onclick="toggleMonthlyWd(this)">MER</div>
+                        <div class="btn-check" data-wd="4" onclick="toggleMonthlyWd(this)">GIO</div>
+                        <div class="btn-check" data-wd="5" onclick="toggleMonthlyWd(this)">VEN</div>
+                        <div class="btn-check" data-wd="6" onclick="toggleMonthlyWd(this)">SAB</div>
+                        <div class="btn-check" data-wd="7" onclick="toggleMonthlyWd(this)">DOM</div>
+                    </div>
+                    <label style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; display:block; margin-bottom:8px;">
+                        OCCORRENZE NEL MESE
+                    </label>
+                    <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:5px;">
+                        <div class="btn-check" data-occ="1" onclick="toggleMonthlyOcc(this)">1° (Primo)</div>
+                        <div class="btn-check" data-occ="2" onclick="toggleMonthlyOcc(this)">2° (Secondo)</div>
+                        <div class="btn-check" data-occ="3" onclick="toggleMonthlyOcc(this)">3° (Terzo)</div>
+                        <div class="btn-check" data-occ="4" onclick="toggleMonthlyOcc(this)">4° (Quarto)</div>
+                        <div class="btn-check" data-occ="-1" onclick="toggleMonthlyOcc(this)">ULTIMO</div>
+                    </div>
+                </div>
+                <div id="uiMensile" style="display:none; margin-top:10px;">
+                    <div style="display:flex; gap:5px; margin-bottom:8px;">
+                        <select id="jumpMonth" onchange="drawEditorCalendar()"
+                            style="flex:1; padding:7px; border-radius:6px; border:1px solid #ddd;"></select>
+                        <select id="jumpYear" onchange="drawEditorCalendar()"
+                            style="flex:1; padding:7px; border-radius:6px; border:1px solid #ddd;"></select>
+                    </div>
+                    <div id="editorCalendar"></div>
+                </div>
+                <div id="uiOnce" style="display:none; margin-top:10px;">
+                    <label
+                        style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase;">Data</label>
+                    <input type="date" id="onceDate"
+                        style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; box-sizing:border-box; margin-top:4px;">
+                </div>
+                <div class="validity-box">
+                    <label>PERIODO DI VALIDITÀ</label>
+                    <div class="validity-row">
+                        <input type="date" id="ruleStart"><input type="date" id="ruleEnd" value="2031-12-31">
+                    </div>
+                </div>
+                <button class="btn-action" style="margin-top:12px; background:#475569; color:white; width:100%;"
+                    onclick="openAuditModal()">👁️ AUDIT PLANNING</button>
+            </div>
+            <div class="panel-center">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h4 style="margin:0; font-size:13px; color:var(--primary);">2. COSTRUZIONE GIORNATA</h4>
+                    <button class="btn-mini" style="background:var(--danger); color:white;"
+                        onclick="resetCurrentConfig()">🗑️ RESET</button>
+                </div>
+                <div class="gen-box">
+                    <div style="display:flex; gap:10px; align-items:flex-end;">
+                        <div><label>INIZIO</label>
+                            <div id="genStartContainer"></div>
+                        </div>
+                        <div><label>TIPO</label><select id="genTipo"
+                                style="padding:7px 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:10px; font-weight:600;">
+                                <option value="VISITA">VISITA</option>
+                                <option value="PAUSA">PAUSA</option>
+                                <option value="BLOCCATO">BLOCCO</option>
+                            </select></div>
+                    </div>
+                    <div class="gen-row">
+                        <div><label>N. SLOT</label><input type="number" id="genNum" placeholder="1" min="1" max="40">
+                        </div>
+                        <div><label>MINUTI</label><input type="number" id="genDur" placeholder="40" min="5" max="120">
+                        </div>
+                        <button id="btnMainAction" class="btn-mini"
+                            style="background:var(--accent); color:white; padding:7px 16px;"
+                            onclick="addOrUpdateBlock()">+ INSERISCI</button>
+                    </div>
+                    <div
+                        style="margin-top:8px; padding:10px; background:#f8fafc; border-radius:6px; border:1px solid #e2e8f0;">
+                        <label
+                            style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:11px; font-weight:700; color:#334155;">
+                            <input type="checkbox" id="genFasciaOraria" style="width:16px; height:16px;">
+                            📋 MODALITÀ FASCIA ORARIA - Slot numerati per gruppi di pazienti
+                        </label>
+                        <div style="font-size:11px; color:#64748b; margin-top:6px; margin-left:22px; line-height:1.5;">
+                            <strong style="color:#475569;">Quando usarla:</strong><br>
+                            • <strong>PRELIEVI</strong>: 5 pazienti dalle 09:00 alle 10:00 (non serve calcolare i 12
+                            minuti per slot)<br>
+                            • <strong>INFUSIONI</strong>: 8 pazienti per fascia oraria senza orari precisi<br>
+                            • <strong>AMBULATORI</strong>: gruppi di pazienti per ora (es. 4 visite dalle 14:00 alle
+                            15:00)<br>
+                            <span
+                                style="display:inline-block; margin-top:4px; padding:4px 6px; background:#e0f2fe; border-radius:4px; color:#0369a1;">
+                                ✓ Risultato: "09:00-10:00 → SLOT 1", "SLOT 2", "SLOT 3"... (fascia visibile solo sul
+                                primo)
+                            </span>
+                        </div>
+                    </div>
+                    <input type="text" id="genLabel" placeholder="Etichetta (es. Pausa Pranzo)..."
+                        style="width:100%; margin-top:8px; padding:7px 10px; border-radius:6px; border:1px solid #cbd5e1; font-size:11px; box-sizing:border-box;">
+                </div>
+                <div id="slotEditorList"></div>
+            </div>
+            <div class="panel-right">
+                <h4
+                    style="margin:0 0 10px 0; font-size:11px; text-align:center; color:#64748b; text-transform:uppercase;">
+                    Anteprima</h4>
+                <div id="visualPreview"
+                    style="overflow-y:auto; flex-grow:1; background:white; border-radius:12px; border:1px solid #e2e8f0; padding:8px;">
+                </div>
+
+                <!-- PULSANTI SALVATAGGIO -->
+                <div id="saveButtonsContainer" style="margin-top:12px;">
+                    <!-- Pulsante UNICO SMART -->
+                    <button id="btnSmartSave" class="btn-action"
+                        style="background:var(--success); color:white; width:100%; padding:14px; margin-bottom:6px; font-weight:800; font-size:14px;"
+                        onclick="saveMasterRule()">
+                        💾 SALVA REGOLA
+                    </button>
+                </div>
+
+                <button class="btn-mini"
+                    style="margin-top:6px; width:100%; background:#eee; color:#475569; padding:8px;"
+                    onclick="closeModalRule()">CHIUDI</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalAudit" class="modal">
+        <div class="modal-content" style="flex-direction:column; width:96vw; max-width:1600px; height:92vh;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <h4 style="margin:0; font-size:15px;">👁️ AUDIT — <span id="auditTitle"
+                        style="color:var(--accent);"></span></h4>
+                <button class="btn-mini" style="background:#eee;" onclick="closeAuditModal()">CHIUDI</button>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:20px; flex:1; overflow:hidden;">
+                <div style="flex:0 0 320px; overflow-y:hidden; border-bottom:2px solid #e2e8f0; padding-bottom:15px;">
+                    <div id="auditGallery" class="audit-top" style="height:300px;"></div>
+                </div>
+                <div style="flex:1; overflow-y:auto; display:flex; flex-direction:column;">
+                    <div
+                        style="display:flex; justify-content:center; align-items:center; gap:15px; padding:10px 0; border-bottom:2px solid #e2e8f0; margin-bottom:15px; background:#f8fafc; border-radius:8px;">
+                        <button class="btn-mini" style="background:#64748b; color:white; padding:3px 6px;"
+                            onclick="changeAuditYear(-1)">◀ ANNO PREC</button>
+                        <span id="auditYearDisplay"
+                            style="font-size:18px; font-weight:800; color:var(--primary); min-width:100px; text-align:center;">2026</span>
+                        <button class="btn-mini" style="background:#64748b; color:white; padding:3px 6px;"
+                            onclick="changeAuditYear(1)">ANNO SUCC ▶</button>
+                        <button class="btn-mini"
+                            style="background:var(--accent); color:white; padding:3px 6px; margin-left:20px;"
+                            onclick="goToAuditCurrentYear()">📅 OGGI</button>
+                    </div>
+                    <div id="auditYearView" class="year-grid"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalHistory" class="modal-history">
+        <div class="hist-box">
+            <div class="hist-header">
+                <span>STORICO PAZIENTE</span>
+                <button onclick="document.getElementById('modalHistory').classList.remove('open')"
+                    style="background:none;border:none;color:white;font-size:20px;cursor:pointer;">✕</button>
+            </div>
+            <div class="hist-body">
+                <div class="hist-search-row">
+                    <input type="text" id="histInput" placeholder="Digita cognome o nome..."
+                        onkeyup="doSearchHistory(this.value)">
+                </div>
+                <div id="histResults"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalNuovo" class="modal-sm">
+        <div class="mbox">
+            <div class="mh">Gestione Slot</div>
+            <input type="text" id="searchPaziente" placeholder="🔍 Cerca paziente..." oninput="searchPazienti()">
+            <div id="searchResults"
+                style="max-height:120px; overflow-y:auto; margin:4px 0; border:1px solid #f1f5f9; border-radius:6px;">
+            </div>
+            <!-- Area paziente selezionato + bottone PRENOTA -->
+            <div id="selectedPazArea" style="display:none; margin:6px 0; padding:8px 10px; background:#e0f2fe; border:2px solid #0ea5e9; border-radius:8px;">
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                    <span id="selectedPazName" style="font-weight:800; font-size:12px; color:#0c4a6e;"></span>
+                    <span onclick="deselectPaziente()" style="cursor:pointer; font-size:14px; color:#94a3b8;" title="Deseleziona">✕</span>
+                </div>
+                <button id="btnPrenota" onclick="confermaPrenotazione()" 
+                    style="background:var(--accent); color:white; border:none; border-radius:6px; padding:8px; width:100%; margin-top:6px; font-weight:800; font-size:12px; cursor:pointer; text-transform:uppercase;">
+                    ✅ PRENOTA
+                </button>
+            </div>
+            <div id="newPatientForm" class="pf-box" style="display:none;">
+                <input type="text" id="newL" placeholder="Cognome*">
+                <input type="text" id="newF" placeholder="Nome*">
+                <label style="font-size:11px; font-weight:bold; color:#64748b; margin-top:5px;">Data di nascita
+                </label>
+                <input type="date" id="newD" style="font-size:10px; padding:10px;">
+                <input type="text" id="newP" placeholder="Telefono">
+                <button onclick="creaERiserva()"
+                    style="background:var(--success); color:white; border:none; border-radius:6px; padding:8px; width:100%; margin-top:6px; font-weight:800; font-size:11px; cursor:pointer; text-transform:uppercase;">SALVA
+                    E PRENOTA</button>
+            </div>
+            <textarea id="newNote" placeholder="Note appuntamento..."></textarea>
+            <div class="pause-row">
+                <input type="text" id="pauseLabel" placeholder="Testo pausa...">
+                <button onclick="setPauseFromModal()" style="background:#f59e0b;">☕ PAUSA</button>
+                <button onclick="rimuoviPausaDalloSlot()" style="background:#ef4444;"
+                    title="Ripristina slot originale">🗑️</button>
+                <button onclick="toggleSlotFromModal()" style="background:#94a3b8;">🚫 BLOC</button>
+                <button onclick="chiudiModal('modalNuovo')" style="background:var(--primary);">✕</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalEdit" class="modal-sm">
+        <div class="mbox">
+            <div class="mh">Modifica Appuntamento</div>
+            <div class="pf-box" style="border-left-color:var(--accent);">
+                <input type="text" id="editL" placeholder="Cognome">
+                <input type="text" id="editF" placeholder="Nome">
+                <input type="text" id="editD" placeholder="Data Nascita">
+                <input type="text" id="editP" placeholder="Telefono">
+            </div>
+            <textarea id="editNote" placeholder="Note appuntamento..."></textarea>
+            <div class="btn-row">
+                <button id="btnSaveEdit" onclick="salvaModifica()" style="background:var(--accent);">💾 SALVA</button>
+                <button onclick="startMove()" style="background:#f59e0b;">🔄 SPOSTA</button>
+                <button onclick="eliminaAppt()" style="background:var(--danger);">🗑️ ELIMINA</button>
+            </div>
+            <button onclick="chiudiModal('modalEdit')"
+                style="width:100%; margin-top:8px; background:var(--primary); color:white; border:none; border-radius:7px; padding:8px; font-weight:800; font-size:11px; cursor:pointer; text-transform:uppercase;">CHIUDI</button>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+    
+    <!-- Funzioni helper per monthly_specific -->
+    <script>
+        // Gestione toggle giorni settimana per monthly_specific
+        window.toggleMonthlyWd = function(btn) {
+            btn.classList.toggle('active');
+        };
+        
+        // Gestione toggle occorrenze per monthly_specific  
+        window.toggleMonthlyOcc = function(btn) {
+            btn.classList.toggle('active');
+        };
+        
+        // Gestione toggle giorni settimana per biweekly
+        window.toggleBiweeklyWd = function(btn) {
+            btn.classList.toggle('active');
+        };
+    </script>
+    
+    <!-- Script password - Controllo e redirect se manca -->
+    <script>
+        if (!window.CryptoJS) {
+            alert('⚠️ Errore caricamento libreria crittografia. Ricaricare la pagina.');
+            throw new Error('CryptoJS non disponibile');
+        }
+        
+        // Controlla se c'è password (localStorage o sessionStorage)
+        let appPassword = localStorage.getItem('app_password') || sessionStorage.getItem('app_password');
+        
+        if (!appPassword) {
+            // Nessuna password trovata → redirect al login
+            window.location.href = 'index.html';
+            throw new Error('Password mancante - redirect al login');
+        }
+        
+        // Password trovata → imposta per decryption
+        window.appPassword = appPassword;
+        window.CryptoJS = window.CryptoJS;
+        console.log('✅ Password caricata - lunghezza:', appPassword.length);
+        
+        // Funzione per logout / cambia password
+        window.changePassword = function() {
+            if (confirm('⚠️ Cambiare password?\n\nVerrai reindirizzato alla pagina di login.')) {
+                // Cancella password
+                localStorage.removeItem('app_password');
+                sessionStorage.removeItem('app_password');
+                
+                // Redirect al login
+                window.location.href = 'index.html';
+            }
+        };
+    </script>
+
+    <!-- Libreria condivisa per rilevamento duplicati -->
+    <script>
+        // CACHE BUSTING AUTOMATICO
+        const script1 = document.createElement('script');
+        script1.src = 'duplicate-checker.js?t=' + Date.now();
+        document.head.appendChild(script1);
+    </script>
+
+    <!-- Applicazione principale con timestamp automatico -->
+    <script>
+        // CARICA MODULO CON TIMESTAMP SEMPRE DIVERSO
+        const script2 = document.createElement('script');
+        script2.type = 'module';
+        script2.src = 'js/index-script.js?t=' + Date.now();
+        document.head.appendChild(script2);
+        // Storico — caricato dopo index-script
+        script2.onload = () => {
+            const script3 = document.createElement('script');
+            script3.type = 'module';
+            script3.src = 'js/storico-script.js?t=' + Date.now();
+            document.head.appendChild(script3);
+        };
+    </script>
+
+    <div id="modalPrint" class="modal-history">
+        <div class="hist-box" style="width:500px;">
+            <div class="hist-header">
+                <span>🖨️ STAMPA PLANNING</span>
+                <button onclick="document.getElementById('modalPrint').classList.remove('open')"
+                    style="background:none;border:none;color:white;font-size:20px;cursor:pointer;">✕</button>
+            </div>
+            <div class="hist-body" style="padding:20px;">
+                <div
+                    style="margin-bottom:20px; padding:12px; background:#f0f9ff; border-radius:8px; border-left:4px solid var(--accent);">
+                    <strong style="color:var(--primary);">📅 Data selezionata:</strong>
+                    <div id="printDate" style="font-size:15px; font-weight:800; color:var(--accent); margin-top:4px;">
+                    </div>
+                </div>
+
+                <div style="margin-bottom:15px;">
+                    <strong style="color:var(--primary); display:block; margin-bottom:8px;">Seleziona stanze da
+                        stampare:</strong>
+                    <div id="printRoomsList"
+                        style="display:flex; flex-direction:column; gap:6px; max-height:300px; overflow-y:auto;"></div>
+                </div>
+
+                <div style="display:flex; gap:8px; margin-bottom:15px;">
+                    <button class="btn-mini" style="flex:1; background:var(--accent); color:white;"
+                        onclick="toggleAllPrintRooms(true)">☑️ SELEZIONA TUTTE</button>
+                    <button class="btn-mini" style="flex:1; background:#94a3b8; color:white;"
+                        onclick="toggleAllPrintRooms(false)">☐ DESELEZIONA</button>
+                </div>
+
+                <div style="display:flex; gap:8px;">
+                    <button class="btn-action"
+                        style="flex:1; background:var(--success); color:white; padding:12px; font-size:13px; font-weight:800;"
+                        onclick="executePrint()">🖨️ STAMPA SELEZIONATE</button>
+                    <button class="btn-mini" style="background:#eee; color:var(--primary);"
+                        onclick="document.getElementById('modalPrint').classList.remove('open')">ANNULLA</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODALE GESTIONE CONFLITTI APPUNTAMENTI (v2 - Day-by-day drag&drop) -->
+    <div id="modalConflict" class="modal-history">
+        <div class="hist-box" style="width:96vw; max-width:1500px; max-height:94vh;">
+            <div class="hist-header" style="background:var(--danger);">
+                <span>⚠️ GESTIONE CONFLITTI - <span id="conflictRoomName"></span> — <span id="conflictTotalCount">0</span> appuntamenti da sistemare</span>
+                <button onclick="closeConflictModal()"
+                    style="background:none;border:none;color:white;font-size:20px;cursor:pointer;">✕</button>
+            </div>
+            <div class="hist-body" style="padding:12px; display:flex; flex-direction:column; gap:10px; height:100%; overflow:hidden;">
+
+                <!-- NAVIGAZIONE GIORNO -->
+                <div style="display:flex; align-items:center; gap:10px; padding:8px 12px; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0;">
+                    <button class="btn-mini" style="background:#334155; color:white; padding:6px 14px; font-size:12px;" onclick="conflictPrevDay()">◀ GIORNO PREC</button>
+                    <div style="flex:1; text-align:center;">
+                        <span id="conflictDayLabel" style="font-size:15px; font-weight:900; color:var(--primary);"></span>
+                        <span id="conflictDayProgress" style="font-size:12px; color:#64748b; margin-left:10px;"></span>
+                    </div>
+                    <button class="btn-mini" style="background:#334155; color:white; padding:6px 14px; font-size:12px;" onclick="conflictNextDay()">GIORNO SUCC ▶</button>
+                </div>
+
+                <!-- PANNELLI SIDE-BY-SIDE: SINISTRA (da spostare) | DESTRA (destinazione) -->
+                <div style="display:flex; gap:12px; flex:1; min-height:0; overflow:hidden;">
+
+                    <!-- SINISTRA: Appuntamenti del giorno da spostare -->
+                    <div style="flex:1; display:flex; flex-direction:column; border:2px solid #fca5a5; border-radius:8px; overflow:hidden; min-width:0;">
+                        <div style="background:#fee2e2; padding:8px 12px; font-weight:bold; color:#991b1b; font-size:12px; display:flex; justify-content:space-between; align-items:center;">
+                            <span>📋 APPUNTAMENTI DA SPOSTARE</span>
+                            <span id="conflictLeftInfo" style="font-size:11px; font-weight:600;"></span>
+                        </div>
+                        <div id="conflictLeftPanel" style="flex:1; overflow-y:auto; padding:8px; background:#fff8f8;">
+                            <!-- Popolato dinamicamente: slot della vecchia config con appuntamenti draggabili -->
+                        </div>
+                    </div>
+
+                    <!-- FRECCIA CENTRALE -->
+                    <div style="display:flex; align-items:center; font-size:28px; color:#94a3b8; padding:0 4px;">➡️</div>
+
+                    <!-- DESTRA: Slot di destinazione -->
+                    <div style="flex:1; display:flex; flex-direction:column; border:2px solid #86efac; border-radius:8px; overflow:hidden; min-width:0;">
+                        <div style="background:#dcfce7; padding:8px 12px; font-weight:bold; color:#166534; font-size:12px; display:flex; justify-content:space-between; align-items:center;">
+                            <span>✨ DESTINAZIONE</span>
+                            <span id="conflictRightInfo" style="font-size:11px; font-weight:600;"></span>
+                        </div>
+                        <!-- Selettori stanza/giorno destinazione -->
+                        <div id="conflictDestControls" style="padding:6px 10px; background:#f0fdf4; border-bottom:1px solid #bbf7d0; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                            <label style="font-size:11px; font-weight:700; color:#166534;">STANZA:</label>
+                            <select id="conflictDestRoom" onchange="conflictRenderRight()" style="padding:4px 8px; border-radius:6px; border:1px solid #86efac; font-size:11px; font-weight:600; max-width:180px;"></select>
+                            <label style="font-size:11px; font-weight:700; color:#166534; margin-left:8px;">GIORNO:</label>
+                            <input type="date" id="conflictDestDate" onchange="conflictRenderRight()" style="padding:4px 8px; border-radius:6px; border:1px solid #86efac; font-size:11px; font-weight:600;">
+                            <button class="btn-mini" style="background:#10b981; color:white; padding:4px 10px; font-size:10px;" onclick="conflictResetDest()">🔄 Reset (stesso giorno/stanza)</button>
+                        </div>
+                        <div id="conflictRightPanel" style="flex:1; overflow-y:auto; padding:8px; background:#f8fff8;">
+                            <!-- Popolato dinamicamente: slot disponibili della nuova config -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BARRA AZIONI -->
+                <div style="display:flex; gap:8px; padding-top:8px; border-top:2px solid #e2e8f0; flex-wrap:wrap;">
+                    <button id="btnProceedSave" class="btn-action"
+                        style="flex:2; background:var(--success); color:white; padding:10px; font-size:13px; font-weight:800;"
+                        onclick="conflictSaveRule()">
+                        💾 SALVA REGOLA
+                    </button>
+                    <button class="btn-mini"
+                        style="background:#3b82f6; color:white; padding:8px 14px; font-size:11px;"
+                        onclick="exportConflictList()">
+                        📋 ESPORTA
+                    </button>
+                    <button class="btn-mini"
+                        style="background:#ef4444; color:white; padding:8px 14px; font-size:11px;"
+                        onclick="deleteAllConflicts()">
+                        🗑️ ELIMINA TUTTI
+                    </button>
+                    <button class="btn-action" style="background:#64748b; color:white; padding:10px;"
+                        onclick="closeConflictModal()">
+                        ❌ CHIUDI SENZA SALVARE
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- MODALE STORICO                                      -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div id="modalStorico" class="modal-history" style="z-index:9999;">
+        <div class="modal-content" style="flex-direction:column; width:94vw; max-width:900px; max-height:88vh;">
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:#0e7490; color:white; border-radius:8px 8px 0 0;">
+                <h3 style="margin:0; font-size:16px;">🗄️ ARCHIVIO STORICO</h3>
+                <button onclick="chiudiStorico()" style="background:rgba(255,255,255,0.2); border:none; color:white; font-size:18px; cursor:pointer; border-radius:4px; padding:2px 8px;">✕</button>
+            </div>
+            <div style="padding:14px 16px; background:#f0f9ff; border-bottom:1px solid #bae6fd;">
+                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:8px;">
+                    <label style="font-size:13px; font-weight:600; color:#0e7490;">Da:</label>
+                    <input type="date" id="storicoDataDa" style="padding:5px 8px; border:1px solid #0891b2; border-radius:5px; font-size:13px;">
+                    <label style="font-size:13px; font-weight:600; color:#0e7490;">A:</label>
+                    <input type="date" id="storicoDataA" style="padding:5px 8px; border:1px solid #0891b2; border-radius:5px; font-size:13px;">
+                    <button onclick="cercaNelloStorico()" style="background:#0891b2; color:white; border:none; padding:6px 14px; border-radius:6px; font-size:13px; font-weight:700; cursor:pointer;">🔍 Carica</button>
+                    <span style="font-size:11px; color:#64748b; font-style:italic;">⚠️ Scaricato solo al clic</span>
+                </div>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <label style="font-size:13px; font-weight:600; color:#0e7490;">🔎 Cognome:</label>
+                    <input type="text" id="storicoCognomeFiltro" placeholder="Filtra per cognome…"
+                        oninput="filtraStoricoCognome()"
+                        style="padding:5px 8px; border:1px solid #0891b2; border-radius:5px; font-size:13px; width:180px;">
+                    <label style="font-size:13px; font-weight:600; color:#0e7490;">🏠 Stanza:</label>
+                    <select id="storicoStanzaFiltro" onchange="filtraStoricoStanza()"
+                        style="padding:5px 8px; border:1px solid #0891b2; border-radius:5px; font-size:13px;">
+                        <option value="">— Tutte —</option>
+                    </select>
+                    <span id="storicoCounter" style="font-size:12px; color:#0e7490; font-weight:600;"></span>
+                </div>
+            </div>
+            <div style="flex:1; overflow-y:auto; padding:10px 16px;">
+                <div id="storicoStatus" style="text-align:center; color:#64748b; font-size:13px; padding:20px;">
+                    Seleziona un intervallo di date e clicca <strong>Carica</strong> per consultare lo storico.
+                </div>
+                <table id="storicoTable" style="display:none; width:100%; border-collapse:collapse; font-size:13px;">
+                    <thead>
+                        <tr style="background:#0e7490; color:white;">
+                            <th style="padding:8px; text-align:left;">Data</th>
+                            <th style="padding:8px; text-align:left;">Paziente</th>
+                            <th style="padding:8px; text-align:left;">Stanza</th>
+                            <th style="padding:8px; text-align:left;">Orario</th>
+                            <th style="padding:8px; text-align:left;">Note</th>
+                        </tr>
+                    </thead>
+                    <tbody id="storicoTbody"></tbody>
+                </table>
+            </div>
+            <div style="padding:8px 16px; background:#e0f2fe; border-radius:0 0 8px 8px; font-size:11px; color:#0c4a6e; text-align:center;">
+                📌 Dati in sola lettura — per modifiche contatta l'amministratore
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

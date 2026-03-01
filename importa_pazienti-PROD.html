@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Importatore Pazienti - PRODUZIONE</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: #0f172a; 
+            color: #e2e8f0; 
+            padding: 20px; 
+        }
+        .container { 
+            max-width: 600px; 
+            margin: auto; 
+            background: #1e293b; 
+            padding: 25px; 
+            border-radius: 12px; 
+            border: 1px solid #334155; 
+        }
+        h2 { 
+            color: #38bdf8; 
+            border-bottom: 2px solid #334155; 
+            padding-bottom: 10px; 
+        }
+        .env-badge {
+            display: inline-block;
+            background: #dc2626;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .step { 
+            background: #0f172a; 
+            padding: 15px; 
+            border-radius: 8px; 
+            margin-bottom: 15px; 
+            border-left: 4px solid #38bdf8; 
+        }
+        label { 
+            display: block; 
+            margin-bottom: 5px; 
+            font-weight: bold; 
+            font-size: 13px; 
+        }
+        input { 
+            width: 100%; 
+            padding: 10px; 
+            margin-bottom: 10px; 
+            background: #1e293b; 
+            border: 1px solid #334155; 
+            color: white; 
+            border-radius: 5px; 
+            box-sizing: border-box; 
+        }
+        button { 
+            width: 100%; 
+            padding: 12px; 
+            border: none; 
+            border-radius: 6px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            transition: 0.3s; 
+            margin-bottom: 10px; 
+        }
+        button:hover { opacity: 0.9; }
+        button:disabled { 
+            opacity: 0.5; 
+            cursor: not-allowed; 
+        }
+        .btn-test { 
+            background: #64748b; 
+            color: white; 
+        }
+        .btn-main { 
+            background: #0ea5e9; 
+            color: white; 
+            font-size: 16px; 
+        }
+        #log { 
+            background: #000; 
+            color: #4ade80; 
+            padding: 15px; 
+            border-radius: 6px; 
+            font-family: 'Courier New', Courier, monospace; 
+            font-size: 12px; 
+            height: 300px; 
+            overflow-y: auto; 
+            border: 1px solid #334155; 
+            line-height: 1.6;
+        }
+        .err { color: #f87171; }
+        .info { color: #38bdf8; }
+        .warn { color: #fbbf24; }
+        .success { color: #4ade80; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🛠️ Importatore Pazienti <span class="env-badge">PRODUZIONE</span></h2>
+    
+    <div class="step">
+        <p style="font-size: 13px; color: #94a3b8; margin: 0;">
+            Database: <strong style="color: #38bdf8;">plannerptv</strong><br>
+            Path: <strong style="color: #38bdf8;">hosp_db_v5</strong>
+        </p>
+    </div>
+
+    <div class="step">
+        <button class="btn-test" onclick="testConnection()">1. TEST CONNESSIONE</button>
+    </div>
+
+    <div class="step">
+        <label>Password Criptazione (Master Password):</label>
+        <input type="password" id="mPass" placeholder="La password che usi nel planning">
+        <label>Seleziona file tblPatients.xlsx:</label>
+        <input type="file" id="fInput" accept=".xlsx">
+        <button class="btn-main" onclick="runImport()">2. AVVIA IMPORTAZIONE</button>
+    </div>
+
+    <div id="log">Console pronta...<br></div>
+</div>
+
+<script>
+    // ═══════════════════════════════════════════════════════════
+    // CONFIGURAZIONE FIREBASE PRODUZIONE
+    // Project: plannerptv
+    // ═══════════════════════════════════════════════════════════
+    const config = {
+        apiKey: "AIzaSyAaOP5IB8lq0CTExHAGxh02R8SyKezq3EU",
+        authDomain: "plannerptv.firebaseapp.com",
+        databaseURL: "https://plannerptv-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "plannerptv",
+        storageBucket: "plannerptv.firebasestorage.app",
+        messagingSenderId: "491701018681",
+        appId: "1:491701018681:web:2eb444e61b71231c95ede8"
+    };
+    const ROOT = "hosp_db_v5";
+
+    // Inizializzazione Firebase
+    firebase.initializeApp(config);
+    const db = firebase.database();
+    const auth = firebase.auth();
+
+    function addLog(msg, type = '') {
+        const log = document.getElementById('log');
+        const colorClass = type === 'error' ? 'err' : 
+                          type === 'info' ? 'info' : 
+                          type === 'warn' ? 'warn' :
+                          type === 'success' ? 'success' : '';
+        log.innerHTML += `<div class="${colorClass}">[${new Date().toLocaleTimeString()}] ${msg}</div>`;
+        log.scrollTop = log.scrollHeight;
+    }
+
+    async function testConnection() {
+        addLog("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", "info");
+        addLog("🔐 AVVIO TEST CONNESSIONE", "info");
+        addLog("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", "info");
+        addLog("Database: plannerptv", "info");
+        addLog("Path: " + ROOT, "info");
+        addLog("");
+        
+        try {
+            addLog("⏳ Autenticazione anonima...");
+            await auth.signInAnonymously();
+            addLog("✅ Autenticazione riuscita", "success");
+            addLog("");
+            
+            addLog("⏳ Test lettura database...");
+            const snap = await db.ref(ROOT + '/tblCategories').limitToFirst(1).once('value');
+            
+            if (snap.exists()) {
+                addLog("✅ Database risponde correttamente", "success");
+                addLog("✅ Path ROOT trovato: " + ROOT, "success");
+            } else {
+                addLog("⚠️  Database vuoto o path non trovato", "warn");
+                addLog("   Questo è normale se è un database nuovo", "info");
+            }
+            
+            addLog("");
+            addLog("🎉 TEST COMPLETATO CON SUCCESSO!", "success");
+            addLog("   Puoi procedere con l'importazione", "info");
+            
+        } catch (e) {
+            addLog("");
+            addLog("❌ ERRORE: " + e.message, "error");
+            addLog("");
+            
+            if (e.code === 'auth/operation-not-allowed') {
+                addLog("💡 SOLUZIONE:", "warn");
+                addLog("   1. Vai su Firebase Console", "warn");
+                addLog("   2. Authentication → Sign-in method", "warn");
+                addLog("   3. Abilita 'Anonymous'", "warn");
+            } else if (e.message.includes('Permission denied')) {
+                addLog("💡 SOLUZIONE:", "warn");
+                addLog("   1. Vai su Firebase Console", "warn");
+                addLog("   2. Realtime Database → Rules", "warn");
+                addLog("   3. Cambia in:", "warn");
+                addLog("      {", "warn");
+                addLog("        \"rules\": {", "warn");
+                addLog("          \".read\": \"auth != null\",", "warn");
+                addLog("          \".write\": \"auth != null\"", "warn");
+                addLog("        }", "warn");
+                addLog("      }", "warn");
+                addLog("   4. Clicca PUBLISH", "warn");
+            }
+        }
+    }
+
+    async function runImport() {
+        const pass = document.getElementById('mPass').value;
+        const file = document.getElementById('fInput').files[0];
+
+        if (!pass) {
+            alert("⚠️ Inserisci la password di criptazione!");
+            return;
+        }
+        if (!file) {
+            alert("⚠️ Seleziona il file Excel!");
+            return;
+        }
+
+        addLog("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", "info");
+        addLog("🚀 AVVIO IMPORTAZIONE PAZIENTI", "info");
+        addLog("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", "info");
+        addLog("File: " + file.name, "info");
+        addLog("");
+
+        const reader = new FileReader();
+
+        reader.onload = async (e) => {
+            try {
+                // Autenticazione
+                addLog("⏳ Autenticazione...");
+                await auth.signInAnonymously();
+                addLog("✅ Autenticato", "success");
+                addLog("");
+
+                // Lettura Excel
+                addLog("⏳ Lettura file Excel...");
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                
+                addLog(`✅ File letto: ${rows.length} righe`, "success");
+                addLog("");
+
+                // Cancellazione tabella esistente
+                addLog("⏳ Pulizia tabella pazienti esistente...");
+                await db.ref(ROOT + '/pazienti').remove();
+                addLog("✅ Tabella svuotata", "success");
+                addLog("");
+
+                // Preparazione dati criptati
+                addLog("⏳ Criptazione pazienti...");
+                const updates = {};
+                let count = 0;
+                
+                // Funzione per normalizzare qualsiasi formato data in YYYY-MM-DD
+                function normalizeDateForDB(val) {
+                    if (!val) return '';
+                    // Numero seriale Excel (es. 24313)
+                    if (!isNaN(val) && Number(val) > 1000) {
+                        const excelEpoch = new Date(1899, 11, 30);
+                        const d = new Date(excelEpoch.getTime() + Number(val) * 86400000);
+                        if (!isNaN(d.getTime())) {
+                            // FIX: usa getFullYear/Month/Date (locale) invece di toISOString (UTC)
+                            return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                        }
+                    }
+                    val = String(val).trim();
+                    // Già YYYY-MM-DD
+                    if (val.match(/^\d{4}-\d{2}-\d{2}$/)) return val;
+                    // DD/MM/YYYY → YYYY-MM-DD
+                    if (val.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
+                        const parts = val.split('/');
+                        return `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+                    }
+                    return val;
+                }
+
+                rows.forEach(row => {
+                    const id = String(row.PatientID || row.id || '').trim();
+                    if (id) {
+                        const cognome = String(row.LastName || '').toUpperCase().trim();
+                        const nome = String(row.FirstName || '').toUpperCase().trim();
+                        const dobNormalized = normalizeDateForDB(row.DateOfBirth);
+                        
+                        updates[id] = {
+                            id: id,
+                            lastName_enc: CryptoJS.AES.encrypt(cognome, pass).toString(),
+                            firstName_enc: CryptoJS.AES.encrypt(nome, pass).toString(),
+                            dob: dobNormalized,
+                            phone: String(row.Telephone || '').trim()
+                        };
+                        count++;
+                    }
+                });
+
+                addLog(`✅ Criptati ${count} pazienti`, "success");
+                addLog("");
+
+                // Caricamento su Firebase
+                addLog("⏳ Caricamento su Firebase...");
+                await db.ref(ROOT + '/pazienti').set(updates);
+                
+                // Pulizia: cancella eventuali record con ID Firebase residui (iniziano con -)
+                addLog("⏳ Pulizia record residui...");
+                const snap = await db.ref(ROOT + '/pazienti').once('value');
+                const allKeys = snap.val() ? Object.keys(snap.val()) : [];
+                let cleaned = 0;
+                for (const key of allKeys) {
+                    if (!updates[key]) {
+                        await db.ref(ROOT + '/pazienti/' + key).remove();
+                        addLog(`🗑️ Rimosso record residuo: ${key}`, "warn");
+                        cleaned++;
+                    }
+                }
+                if (cleaned > 0) {
+                    addLog(`✅ Rimossi ${cleaned} record residui`, "info");
+                }
+
+                addLog("");
+                addLog("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", "success");
+                addLog("🎉 IMPORTAZIONE COMPLETATA!", "success");
+                addLog("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", "success");
+                addLog(`✅ Caricati ${count} pazienti`, "success");
+                addLog("✅ Database: plannerptv", "success");
+                addLog("✅ Path: " + ROOT + "/pazienti", "success");
+
+            } catch (err) {
+                addLog("");
+                addLog("❌ ERRORE CRITICO: " + err.message, "error");
+                addLog("");
+                
+                if (err.message.includes('Permission denied')) {
+                    addLog("💡 Le Firebase Rules bloccano la scrittura", "warn");
+                    addLog("   Segui le istruzioni del test connessione", "warn");
+                }
+            }
+        };
+        
+        reader.readAsArrayBuffer(file);
+    }
+</script>
+
+</body>
+</html>

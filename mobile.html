@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>📱 EMERGENCY PLANNER MOBILE</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <script type="module">
+        // Carica config da file esterno e la rende disponibile globalmente
+        import { firebaseConfig, ROOT } from './firebase-config.js';
+        window._firebaseConfig = firebaseConfig;
+        window._ROOT = ROOT;
+        // Avvia app appena config è pronta
+        window.dispatchEvent(new Event('configReady'));
+    </script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            background: #f1f5f9;
+            color: #0f172a;
+            padding: 8px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .container { 
+            max-width: 600px; 
+            margin: 0 auto;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+        }
+
+        /* HEADER COMPATTO MA CON PULSANTI GRANDI */
+        .header-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: white;
+            border-radius: 40px;
+            padding: 10px 12px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            flex-shrink: 0;
+        }
+        .header-bar button, .header-bar .date-input {
+            font-size: 1rem;
+            padding: 12px 10px;
+            border-radius: 30px;
+            border: 1px solid #cbd5e1;
+            height: 48px;
+            background: white;
+        }
+        .header-bar button {
+            background: #b91c1c;
+            color: white;
+            border: none;
+            font-weight: 600;
+            white-space: nowrap;
+            cursor: pointer;
+            min-width: 48px;
+        }
+        .header-bar button.small {
+            background: #334155;
+        }
+        .header-bar .date-input {
+            flex: 3;
+            font-size: 1rem;
+        }
+        .status-dot {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-left: 4px;
+            flex-shrink: 0;
+        }
+        .status-dot.green { background: #22c55e; box-shadow: 0 0 0 3px #86efac; }
+        .status-dot.red { background: #ef4444; box-shadow: 0 0 0 3px #fecaca; }
+        .status-dot.yellow { background: #eab308; box-shadow: 0 0 0 3px #fef08a; }
+
+        /* Selezione stanza - grande e tappabile */
+        .room-selector {
+            margin-bottom: 12px;
+        }
+        .room-selector select {
+            width: 100%;
+            padding: 14px 16px;
+            border-radius: 40px;
+            border: 1px solid #cbd5e1;
+            font-size: 1.1rem;
+            background: white;
+            appearance: none;
+            background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%230f172a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+            background-repeat: no-repeat;
+            background-position: right 16px center;
+            background-size: 20px;
+        }
+
+        /* Colonna singola stanza */
+        .room-column {
+            background: #f8fafc;
+            border-radius: 24px;
+            border: 2px solid #cbd5e1;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+        }
+        .room-header {
+            background: #0f172a;
+            color: white;
+            padding: 16px;
+            font-weight: 700;
+            font-size: 1.3rem;
+            text-align: center;
+            border-bottom: 3px solid #94a3b8;
+        }
+        .slot-list {
+            padding: 8px;
+            overflow-y: auto;
+            flex: 1;
+            background: #ffffff;
+        }
+        .slot-item {
+            background: #f8fafc;
+            border-radius: 16px;
+            margin-bottom: 8px;
+            padding: 14px 16px;
+            border-left: 8px solid #cbd5e1;
+            font-size: 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: relative;
+            cursor: pointer;
+            border: 1px solid #e2e8f0;
+        }
+        .slot-item.empty-slot {
+            border-left-color: #94a3b8;
+            border: 1px dashed #94a3b8;
+            background: #ffffff;
+            cursor: pointer;
+        }
+        .slot-item.empty-slot:hover { background: #f1f5f9; }
+        .slot-item.occupied {
+            border-left-color: #b91c1c;
+            background: #fff5f5;
+        }
+        .slot-time {
+            font-weight: 700;
+            color: #334155;
+            font-size: 0.9rem;
+            margin-bottom: 4px;
+        }
+        .slot-patient {
+            font-weight: 700;
+            color: #0f172a;
+            text-transform: uppercase;
+            font-size: 1.1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .delete-icon {
+            color: #b91c1c;
+            cursor: pointer;
+            font-size: 1.5rem;
+            padding: 0 8px;
+        }
+        .delete-icon:active { background: #fee2e2; border-radius: 50%; }
+        .badge-clear {
+            background: #fee2e2;
+            color: #b91c1c;
+            font-size: 0.8rem;
+            padding: 4px 8px;
+            border-radius: 20px;
+            margin-left: 8px;
+        }
+        .slot-note {
+            font-size: 0.9rem;
+            color: #64748b;
+            font-style: italic;
+            margin-top: 6px;
+        }
+
+        /* Note giornaliere */
+        .daily-notes-box {
+            background: #fffbeb;
+            border: 2px solid #f59e0b;
+            border-radius: 24px;
+            padding: 12px;
+            margin-top: 12px;
+        }
+        #dailyNoteInput {
+            width: 100%;
+            border: 1px solid #fbbf24;
+            border-radius: 40px;
+            padding: 14px 16px;
+            font-size: 1rem;
+        }
+
+        /* Modali */
+        .modal {
+            display: none;
+            position: fixed;
+            top:0; left:0; width:100%; height:100%;
+            background: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal.open { display: flex; }
+        .modal-content {
+            background: white;
+            border-radius: 32px;
+            width: 90%;
+            max-width: 450px;
+            padding: 24px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-content h3 {
+            margin-bottom: 16px;
+            color: #b91c1c;
+            font-size: 1.5rem;
+        }
+        .close-btn { float: right; font-size: 2rem; cursor: pointer; }
+        .search-results {
+            max-height: 250px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 20px;
+            margin: 12px 0;
+            font-size: 1rem;
+        }
+        .sr-item { padding: 14px; cursor: pointer; border-bottom: 1px solid #f1f5f9; }
+        .sr-item:hover { background: #f1f5f9; }
+        .sr-item.selected { background: #bfdbfe; }
+        input, button { 
+            font-size: 1rem; 
+            padding: 14px 16px; 
+            border-radius: 40px; 
+            border: 1px solid #cbd5e1; 
+            width: 100%; 
+            margin-bottom: 12px; 
+        }
+        button { 
+            background: #b91c1c; 
+            color: white; 
+            border: none; 
+            font-weight: 600; 
+            cursor: pointer; 
+            min-height: 52px;
+        }
+        button:active { opacity: 0.8; }
+        hr { margin: 20px 0; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <!-- HEADER CON PULSANTI GRANDI -->
+    <div class="header-bar no-print">
+        <button onclick="openPasswordModal()" style="background:#334155; width:auto; font-size:1.2rem;">🔐</button>
+        <input type="date" id="datePicker" class="date-input" value="">
+        <button onclick="goToday()" class="small" style="background:#334155; font-size:1rem;">📆</button>
+        <span id="statusDot" class="status-dot yellow" title="Stato"></span>
+    </div>
+
+    <!-- Selezione stanza - grande -->
+    <div class="room-selector no-print">
+        <select id="roomSelect" onchange="onRoomChange()">
+            <option value="">Caricamento stanze...</option>
+        </select>
+    </div>
+
+    <!-- Area principale: colonna stanza e note -->
+    <div id="viewSection" style="display: none; flex:1; display: flex; flex-direction: column; min-height:0;">
+        <div class="room-column">
+            <div class="room-header" id="roomHeader">Seleziona una stanza</div>
+            <div class="slot-list" id="slotList"></div>
+        </div>
+        <div class="daily-notes-box">
+            <input type="text" id="dailyNoteInput" placeholder="Note del giorno..." autocomplete="off">
+        </div>
+    </div>
+</div>
+
+<!-- MODALE PASSWORD (grande) -->
+<div id="modalPassword" class="modal no-print">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeModal('modalPassword')">&times;</span>
+        <h3>🔐 Inserisci password</h3>
+        <input type="password" id="passwordInput" placeholder="Password" style="margin-bottom:20px;">
+        <button onclick="submitPassword()" style="background:#b91c1c;">CONNETTI</button>
+    </div>
+</div>
+
+<!-- MODALE AGGIUNTA APPUNTAMENTO -->
+<div id="modalAppointment" class="modal no-print">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeModal('modalAppointment')">&times;</span>
+        <h3>➕ Nuovo appuntamento</h3>
+        <div id="slotInfo" style="background:#f1f5f9; padding:12px; border-radius:16px; margin-bottom:12px;"></div>
+
+        <label style="font-weight:600;">Cerca paziente</label>
+        <input type="text" id="searchPatient" placeholder="Cognome o nome..." oninput="searchPatients()">
+        <div id="searchResults" class="search-results"></div>
+
+        <label style="font-weight:600; margin-top:12px;">Note appuntamento</label>
+        <input type="text" id="appointmentNote" placeholder="Inserisci note...">
+
+        <button id="saveSelectedPatientBtn" onclick="saveSelectedPatient()" style="background:#2563eb;" disabled>💾 SALVA PAZIENTE SELEZIONATO</button>
+
+        <hr>
+        <label style="font-weight:600;">Oppure crea nuovo paziente</label>
+        <input type="text" id="newL" placeholder="Cognome*">
+        <input type="text" id="newF" placeholder="Nome*">
+        <input type="text" id="newDob" placeholder="Data nascita (opz)">
+        <input type="text" id="newPhone" placeholder="Telefono (opz)">
+        <button onclick="createAndBook()">➕ SALVA NUOVO PAZIENTE E PRENOTA</button>
+        <small>* obbligatori</small>
+    </div>
+</div>
+
+<!-- MODALE MODIFICA APPUNTAMENTO -->
+<div id="modalEditAppointment" class="modal no-print">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeModal('modalEditAppointment')">&times;</span>
+        <h3>✏️ Modifica appuntamento</h3>
+        <div id="editInfo" style="background:#f1f5f9; padding:12px; border-radius:16px; margin-bottom:12px;"></div>
+
+        <label style="font-weight:600;">Note appuntamento</label>
+        <input type="text" id="editNote" placeholder="Note...">
+
+        <label style="font-weight:600; margin-top:12px;">Dati paziente</label>
+        <input type="text" id="editL" placeholder="Cognome">
+        <input type="text" id="editF" placeholder="Nome">
+        <input type="text" id="editDob" placeholder="Data nascita">
+        <input type="text" id="editPhone" placeholder="Telefono">
+
+        <button onclick="saveEditAppointment()" style="background:#2563eb;">💾 SALVA MODIFICHE</button>
+        <button onclick="closeModal('modalEditAppointment')" style="background:#64748b;">Annulla</button>
+    </div>
+</div>
+
+<!-- MODALE CONFERMA ELIMINA -->
+<div id="modalDeleteConfirm" class="modal no-print">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeModal('modalDeleteConfirm')">&times;</span>
+        <h3>🗑️ Elimina</h3>
+        <p id="deleteInfo" style="font-size:1.1rem;">Sei sicuro?</p>
+        <button onclick="confirmDelete()" style="background:#b91c1c;">Elimina</button>
+        <button onclick="closeModal('modalDeleteConfirm')" style="background:#64748b;">Annulla</button>
+    </div>
+</div>
+
+<script>
+    // ---------- CONFIGURAZIONE FIREBASE (letta da firebase-config.js) ----------
+    // firebaseConfig e ROOT vengono iniettati dal modulo ES6 sopra
+    let firebaseConfig = null;
+    let ROOT = "";
+
+    // Variabili globali
+    let db, auth, passwordKey = "";
+    let patientsMap = {};
+    let roomsMap = [];
+    let rulesMap = {};
+    let currentAppointments = [];
+    let dailyNotes = {};
+    let selectedSlot = null;
+    let pendingDeleteId = null;
+    let currentDateStr = "";
+    let selectedRoomId = null;
+    let selectedPatientId = null;
+    let noteTimeout = null;
+
+    // ---------- FUNZIONI CRITTOGRAFIA ----------
+    function decrypt(encrypted) {
+        if (!encrypted) return "";
+        if (typeof encrypted === 'string' && !encrypted.startsWith('U2FsdGVk')) return encrypted;
+        try {
+            const bytes = CryptoJS.AES.decrypt(encrypted, passwordKey);
+            return bytes.toString(CryptoJS.enc.Utf8) || encrypted;
+        } catch { return "⚠️ err"; }
+    }
+    function encrypt(text) {
+        if (!text) return text;
+        return CryptoJS.AES.encrypt(text, passwordKey).toString();
+    }
+
+    // ---------- FUNZIONI REGOLE (identiche alla versione precedente) ----------
+    function matchesMonthlyOccurrence(date, weekdays, occurrences) {
+        const wd = date.getDay() === 0 ? 7 : date.getDay();
+        if (!weekdays.includes(wd)) return false;
+        const year = date.getFullYear(), month = date.getMonth(), day = date.getDate();
+        let count = 0;
+        for (let d = 1; d <= day; d++) {
+            const test = new Date(year, month, d);
+            const twd = test.getDay() === 0 ? 7 : test.getDay();
+            if (twd === wd) count++;
+        }
+        if (occurrences.includes(-1)) {
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            for (let d = day + 1; d <= daysInMonth; d++) {
+                const test = new Date(year, month, d);
+                const twd = test.getDay() === 0 ? 7 : test.getDay();
+                if (twd === wd) return false;
+            }
+            return true;
+        }
+        return occurrences.includes(count);
+    }
+
+    function matchesBiweekly(date, weekdays, anchorDate) {
+        const wd = date.getDay() === 0 ? 7 : date.getDay();
+        if (!weekdays.includes(wd)) return false;
+        const anchor = new Date(anchorDate); anchor.setHours(0,0,0,0);
+        const target = new Date(date); target.setHours(0,0,0,0);
+        const anchorDay = anchor.getDay() === 0 ? 7 : anchor.getDay();
+        const anchorMonday = new Date(anchor);
+        anchorMonday.setDate(anchor.getDate() - (anchorDay - 1));
+        const targetDay = target.getDay() === 0 ? 7 : target.getDay();
+        const targetMonday = new Date(target);
+        targetMonday.setDate(target.getDate() - (targetDay - 1));
+        const diffWeeks = Math.round((targetMonday - anchorMonday) / (7 * 86400000));
+        return (diffWeeks % 2) === 0;
+    }
+
+    function findRegolaPer(catId, date) {
+        const iso = date.toLocaleDateString('sv-SE');
+        const wd = date.getDay() === 0 ? 7 : date.getDay();
+        let best = null, bestP = -1, bestDate = null;
+        for (const [id, r] of Object.entries(rulesMap)) {
+            if (String(r.catId) !== String(catId)) continue;
+            if (r.validaDa && iso < r.validaDa) continue;
+            if (r.validaA && iso > r.validaA) continue;
+            let match = false, p = 0;
+            if (r.freq === 'once' && r.dataSpecifica === iso) { match = true; p = 3; }
+            if (r.freq === 'monthly_specific' && r.monthlyWeekdays && r.monthlyOccurrences) {
+                match = matchesMonthlyOccurrence(date, r.monthlyWeekdays, r.monthlyOccurrences); p = 2;
+            }
+            if (r.freq === 'monthly' && r.date && r.date.includes(iso)) { match = true; p = 2; }
+            if (r.freq === 'weekly' && r.giorni && r.giorni.includes(wd)) { match = true; p = 1; }
+            if (r.freq === 'biweekly' && r.biweeklyWeekdays && r.biweeklyAnchor) {
+                match = matchesBiweekly(date, r.biweeklyWeekdays, r.biweeklyAnchor); p = 1.5;
+            }
+            if (match) {
+                if (p > bestP) { bestP = p; best = r; bestDate = new Date(r.createdAt || 0); }
+                else if (p === bestP) {
+                    const rDate = new Date(r.createdAt || 0);
+                    if (rDate > bestDate) { best = r; bestDate = rDate; }
+                }
+            }
+        }
+        return best;
+    }
+
+    function sortSlots(slots) {
+        return slots.sort((a, b) => {
+            if (a.ora && b.ora) {
+                const getStart = (ora) => {
+                    const m = ora.match(/^(\d{2}):(\d{2})/);
+                    return m ? parseInt(m[1])*60 + parseInt(m[2]) : 0;
+                };
+                return getStart(a.ora) - getStart(b.ora);
+            }
+            if (!a.ora && !b.ora) return 0;
+            if (!a.ora) return 1;
+            return -1;
+        });
+    }
+
+    function getSlotsForRoom(catId, date) {
+        const rule = findRegolaPer(catId, date);
+        if (rule && rule.slots && rule.slots.length) {
+            return sortSlots([...rule.slots]);
+        }
+        return Array.from({ length: 8 }, (_, i) => ({
+            tipo: 'VISITA', label: '', ora: null, slotNum: i+1, fasciaOraria: false
+        }));
+    }
+
+    // ---------- GESTIONE PASSWORD ----------
+    function openPasswordModal() {
+        document.getElementById('passwordInput').value = '';
+        document.getElementById('modalPassword').classList.add('open');
+    }
+
+    function submitPassword() {
+        passwordKey = document.getElementById('passwordInput').value;
+        if (!passwordKey) { alert("Inserisci password"); return; }
+        closeModal('modalPassword');
+        initApp();
+    }
+
+    function autoLogin() {
+        // Legge password salvata dall'index.html
+        const pw = sessionStorage.getItem('app_password') || localStorage.getItem('app_password');
+        if (pw) {
+            passwordKey = pw;
+            initApp();
+        } else {
+            // Nessuna password trovata → torna al login
+            window.location.href = '../index.html';
+        }
+    }
+
+    // ---------- INIZIALIZZAZIONE ----------
+    function initApp() {
+        const statusDot = document.getElementById('statusDot');
+        statusDot.className = 'status-dot yellow';
+        try {
+            firebaseConfig = window._firebaseConfig;
+            ROOT = window._ROOT || ROOT;
+            if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+            db = firebase.database(); auth = firebase.auth();
+            auth.signInAnonymously()
+                .then(() => {
+                    const basePath = ROOT ? '/' + ROOT : '';
+                    return Promise.all([
+                        db.ref(basePath + '/pazienti').once('value'),
+                        db.ref(basePath + '/tblCategories').once('value'),
+                        db.ref(basePath + '/RegoleAttive').once('value'),
+                        db.ref(basePath + '/dailyNotes').once('value')
+                    ]);
+                })
+                .then(([paz, cat, rule, note]) => {
+                    patientsMap = paz.val() || {};
+                    const cats = cat.val() || {};
+                    roomsMap = Object.entries(cats).map(([id, c]) => ({ id, name: c.name || 'Senza nome', color: c.color || '#64748b' })).filter(r => r.name);
+                    rulesMap = rule.val() || {};
+                    dailyNotes = note.val() || {};
+
+                    const select = document.getElementById('roomSelect');
+                    select.innerHTML = '<option value="">Seleziona stanza</option>';
+                    roomsMap.forEach(r => {
+                        const opt = document.createElement('option');
+                        opt.value = r.id;
+                        opt.textContent = r.name;
+                        select.appendChild(opt);
+                    });
+
+                    document.getElementById('viewSection').style.display = 'flex';
+                    statusDot.className = 'status-dot green';
+                    
+                    const today = new Date().toLocaleDateString('sv-SE');
+                    document.getElementById('datePicker').value = today;
+                    
+                    document.getElementById('datePicker').addEventListener('change', onDateChange);
+                    
+                    if (roomsMap.length > 0) {
+                        selectedRoomId = roomsMap[0].id;
+                        select.value = selectedRoomId;
+                    }
+                    
+                    onDateChange();
+                })
+                .catch(err => { 
+                    alert(err.message); 
+                    statusDot.className = 'status-dot red';
+                });
+        } catch (e) { alert(e.message); }
+    }
+
+    // ---------- CAMBIO DATA ----------
+    function onDateChange() {
+        clearTimeout(noteTimeout);
+        
+        const newDate = document.getElementById('datePicker').value;
+        if (!newDate) return;
+        if (newDate === currentDateStr) return;
+        currentDateStr = newDate;
+        
+        const basePath = ROOT ? '/' + ROOT : '';
+        
+        db.ref(basePath + '/GiroVisite')
+            .orderByChild('data')
+            .equalTo(currentDateStr)
+            .once('value')
+            .then(snap => {
+                const raw = snap.val() || {};
+                currentAppointments = Object.entries(raw).map(([id, a]) => ({ ...a, id }));
+                renderRoom();
+            })
+            .catch(err => {
+                console.error(err);
+                document.getElementById('slotList').innerHTML = `<div style="color:#b91c1c;">Errore caricamento</div>`;
+            });
+
+        db.ref(basePath + '/dailyNotes/' + currentDateStr)
+            .once('value')
+            .then(snap => {
+                const encrypted = snap.val() || '';
+                document.getElementById('dailyNoteInput').value = decrypt(encrypted) || '';
+            })
+            .catch(err => console.error(err));
+    }
+
+    // ---------- CAMBIO STANZA ----------
+    function onRoomChange() {
+        const select = document.getElementById('roomSelect');
+        selectedRoomId = select.value;
+        if (selectedRoomId) {
+            renderRoom();
+        } else {
+            document.getElementById('slotList').innerHTML = '';
+            document.getElementById('roomHeader').textContent = 'Seleziona una stanza';
+        }
+    }
+
+    // ---------- RENDER STANZA ----------
+    function renderRoom() {
+        if (!selectedRoomId || !roomsMap.length || !currentDateStr) return;
+        
+        const room = roomsMap.find(r => String(r.id) === String(selectedRoomId));
+        if (!room) return;
+        
+        document.getElementById('roomHeader').textContent = room.name;
+        document.getElementById('roomHeader').style.background = room.color;
+        
+        const slots = getSlotsForRoom(room.id, new Date(currentDateStr + 'T12:00:00'));
+        let html = '';
+        slots.forEach((slot, idx) => {
+            const rowNo = idx + 1;
+            const oraInizio = slot.ora ? slot.ora.split(' - ')[0] || slot.ora : null;
+            let appt = currentAppointments.find(a =>
+                String(a.stanzaID) === String(room.id) &&
+                (String(a.rowNo) === String(rowNo) || (a.oraInizio && oraInizio && a.oraInizio.trim() === oraInizio.trim()))
+            );
+            const isPausaBloccato = appt && (appt.pazienteID === 'PAUSA' || appt.pazienteID === 'BLOCCATO');
+
+            if (appt && !isPausaBloccato) {
+                const p = patientsMap[appt.pazienteID];
+                let nome = 'ID sconosciuto', badge = '';
+                if (p) {
+                    const n = decrypt(p.firstName_enc || p.firstName || p.f || '');
+                    const c = decrypt(p.lastName_enc || p.lastName || p.l || '');
+                    nome = `${c} ${n}`.toUpperCase();
+                    if (p.firstName && !String(p.firstName).startsWith('U2FsdGVk')) badge = '<span class="badge-clear">CHIARO</span>';
+                } else nome = `ID ${appt.pazienteID}`;
+                html += `<div class="slot-item occupied" onclick="openEditModal('${appt.id}')">`;
+                html += `<div class="slot-time">${slot.ora || `Slot ${rowNo}`}</div>`;
+                html += `<div class="slot-patient">${nome} ${badge} <span class="delete-icon" onclick="event.stopPropagation(); openDeleteModal('${appt.id}')">🗑️</span></div>`;
+                if (appt.pazienteNote) html += `<div class="slot-note">📝 ${appt.pazienteNote}</div>`;
+                html += `</div>`;
+            } else if (isPausaBloccato) {
+                html += `<div class="slot-item slot-${appt.pazienteID.toLowerCase()}">`;
+                html += `<div class="slot-time">${slot.ora || `Slot ${rowNo}`}</div>`;
+                html += `<div>${appt.pazienteID === 'PAUSA' ? '☕' : '🚫'} ${appt.pazienteNome || appt.pazienteID}</div>`;
+                html += `</div>`;
+            } else {
+                html += `<div class="slot-item empty-slot" onclick="openAddModal('${room.id}', ${rowNo}, '${slot.ora ? slot.ora.replace(/'/g, "\\'") : ''}')">`;
+                html += `<div class="slot-time">${slot.ora || `Slot ${rowNo}`}</div>`;
+                html += `<div style="color:#94a3b8;">🟢 vuoto</div>`;
+                html += `</div>`;
+            }
+        });
+        document.getElementById('slotList').innerHTML = html;
+    }
+
+    // ---------- MODALE AGGIUNTA ----------
+    function openAddModal(roomId, rowNo, ora) {
+        selectedSlot = { roomId, rowNo, ora };
+        const roomName = roomsMap.find(r=>String(r.id)===String(roomId))?.name || roomId;
+        document.getElementById('slotInfo').innerHTML = `${roomName} - Slot ${rowNo} ${ora ? 'alle '+ora : ''}`;
+        document.getElementById('searchPatient').value = '';
+        document.getElementById('searchResults').innerHTML = '';
+        document.getElementById('appointmentNote').value = '';
+        document.getElementById('newL').value = ''; document.getElementById('newF').value = '';
+        document.getElementById('newDob').value = ''; document.getElementById('newPhone').value = '';
+        selectedPatientId = null;
+        document.getElementById('saveSelectedPatientBtn').disabled = true;
+        document.getElementById('modalAppointment').classList.add('open');
+    }
+
+    function searchPatients() {
+        const q = document.getElementById('searchPatient').value.trim().toLowerCase();
+        const resDiv = document.getElementById('searchResults');
+        if (!q) { resDiv.innerHTML = ''; return; }
+        const matches = Object.entries(patientsMap).map(([id, p]) => {
+            const nome = decrypt(p.firstName_enc || p.firstName || p.f || '');
+            const cogn = decrypt(p.lastName_enc || p.lastName || p.l || '');
+            return { id, nome, cogn, full: (cogn + ' ' + nome).toLowerCase(), rev: (nome + ' ' + cogn).toLowerCase() };
+        }).filter(p => p.full.includes(q) || p.rev.includes(q)).slice(0, 8);
+        resDiv.innerHTML = '';
+        matches.forEach(m => {
+            const d = document.createElement('div');
+            d.className = 'sr-item';
+            d.innerHTML = `<strong>${m.cogn} ${m.nome}</strong>`;
+            d.onclick = () => {
+                document.querySelectorAll('#searchResults .sr-item').forEach(el => el.classList.remove('selected'));
+                d.classList.add('selected');
+                selectedPatientId = m.id;
+                document.getElementById('saveSelectedPatientBtn').disabled = false;
+            };
+            resDiv.appendChild(d);
+        });
+        if (!matches.length) resDiv.innerHTML = '<div class="sr-item">Nessun risultato</div>';
+    }
+
+    function saveSelectedPatient() {
+        if (!selectedSlot || !selectedPatientId) return;
+        const note = document.getElementById('appointmentNote').value.trim();
+        const basePath = ROOT ? '/' + ROOT : '';
+        db.ref(basePath + '/GiroVisite').push({
+            data: currentDateStr, stanzaID: selectedSlot.roomId, rowNo: selectedSlot.rowNo,
+            oraInizio: selectedSlot.ora || null, pazienteID: selectedPatientId, pazienteNote: note || null
+        }).then(() => { 
+            closeModal('modalAppointment'); 
+            onDateChange();
+        }).catch(err => alert(err.message));
+    }
+
+    function createAndBook() {
+        if (!selectedSlot) return;
+        const cogn = document.getElementById('newL').value.trim();
+        const nom = document.getElementById('newF').value.trim();
+        if (!cogn || !nom) { alert("Cognome e nome obbligatori"); return; }
+        const dob = document.getElementById('newDob').value.trim();
+        const phone = document.getElementById('newPhone').value.trim();
+        const note = document.getElementById('appointmentNote').value.trim();
+        const basePath = ROOT ? '/' + ROOT : '';
+        const newId = String(Date.now());
+        const patientData = {
+            id: newId,
+            lastName_enc: encrypt(cogn),
+            firstName_enc: encrypt(nom),
+            dataCreazione: new Date().toISOString()
+        };
+        if (dob) patientData.dob = dob;
+        if (phone) patientData.telefono = phone;
+
+        db.ref(basePath + '/pazienti/' + newId).set(patientData)
+        .then(() => {
+            patientsMap[newId] = patientData;
+            return db.ref(basePath + '/GiroVisite').push({
+                data: currentDateStr, stanzaID: selectedSlot.roomId, rowNo: selectedSlot.rowNo,
+                oraInizio: selectedSlot.ora || null, pazienteID: newId, pazienteNote: note || null
+            });
+        }).then(() => { 
+            closeModal('modalAppointment'); 
+            onDateChange();
+        }).catch(err => alert(err.message));
+    }
+
+    // ---------- MODALE MODIFICA ----------
+    let currentEditApptId = null;
+    function openEditModal(apptId) {
+        const appt = currentAppointments.find(a => a.id === apptId);
+        if (!appt) return;
+        currentEditApptId = apptId;
+        const p = patientsMap[appt.pazienteID] || {};
+        const room = roomsMap.find(r => String(r.id) === String(appt.stanzaID));
+        document.getElementById('editInfo').innerHTML = `${room?.name || 'Stanza'} - Slot ${appt.rowNo} ${appt.oraInizio ? 'alle '+appt.oraInizio : ''}`;
+        document.getElementById('editNote').value = appt.pazienteNote || '';
+        const nome = decrypt(p.firstName_enc || p.firstName || p.f || '');
+        const cogn = decrypt(p.lastName_enc || p.lastName || p.l || '');
+        document.getElementById('editL').value = cogn;
+        document.getElementById('editF').value = nome;
+        document.getElementById('editDob').value = p.dob || '';
+        document.getElementById('editPhone').value = p.telefono || '';
+        document.getElementById('modalEditAppointment').classList.add('open');
+    }
+
+    function saveEditAppointment() {
+        if (!currentEditApptId) return;
+        const appt = currentAppointments.find(a => a.id === currentEditApptId);
+        if (!appt) return;
+        const basePath = ROOT ? '/' + ROOT : '';
+        const newNote = document.getElementById('editNote').value.trim();
+        const promises = [];
+
+        if (newNote !== (appt.pazienteNote || '')) {
+            promises.push(db.ref(basePath + '/GiroVisite/' + currentEditApptId).update({ pazienteNote: newNote || null }));
+        }
+
+        const p = patientsMap[appt.pazienteID];
+        if (p) {
+            const newL = document.getElementById('editL').value.trim();
+            const newF = document.getElementById('editF').value.trim();
+            const newDob = document.getElementById('editDob').value.trim();
+            const newPhone = document.getElementById('editPhone').value.trim();
+            const updates = {};
+            if (newL && newL !== decrypt(p.lastName_enc || p.lastName || p.l || '')) {
+                updates.lastName_enc = encrypt(newL);
+            }
+            if (newF && newF !== decrypt(p.firstName_enc || p.firstName || p.f || '')) {
+                updates.firstName_enc = encrypt(newF);
+            }
+            if (newDob !== (p.dob || '')) updates.dob = newDob || null;
+            if (newPhone !== (p.telefono || '')) updates.telefono = newPhone || null;
+            if (Object.keys(updates).length > 0) {
+                promises.push(db.ref(basePath + '/pazienti/' + appt.pazienteID).update(updates));
+                Object.assign(p, updates);
+            }
+        }
+
+        Promise.all(promises).then(() => {
+            closeModal('modalEditAppointment');
+            onDateChange();
+        }).catch(err => alert(err.message));
+    }
+
+    // ---------- ELIMINA ----------
+    function openDeleteModal(apptId) {
+        pendingDeleteId = apptId;
+        const appt = currentAppointments.find(a => a.id === apptId);
+        if (!appt) return;
+        const p = patientsMap[appt.pazienteID];
+        let nome = "sconosciuto";
+        if (p) {
+            const n = decrypt(p.firstName_enc || p.firstName || p.f || '');
+            const c = decrypt(p.lastName_enc || p.lastName || p.l || '');
+            nome = `${c} ${n}`.toUpperCase();
+        }
+        document.getElementById('deleteInfo').innerText = `Eliminare ${nome}?`;
+        document.getElementById('modalDeleteConfirm').classList.add('open');
+    }
+
+    function confirmDelete() {
+        if (!pendingDeleteId) return;
+        const basePath = ROOT ? '/' + ROOT : '';
+        db.ref(basePath + '/GiroVisite/' + pendingDeleteId).remove()
+            .then(() => { 
+                closeModal('modalDeleteConfirm'); 
+                onDateChange();
+            })
+            .catch(err => alert(err.message));
+    }
+
+    // ---------- NOTE GIORNO ----------
+    document.getElementById('dailyNoteInput').addEventListener('input', function() {
+        clearTimeout(noteTimeout);
+        noteTimeout = setTimeout(() => {
+            const content = this.value.trim();
+            const basePath = ROOT ? '/' + ROOT : '';
+            if (!content) {
+                db.ref(basePath + '/dailyNotes/' + currentDateStr).remove();
+            } else {
+                db.ref(basePath + '/dailyNotes/' + currentDateStr).set(encrypt(content));
+            }
+        }, 800);
+    });
+
+    // ---------- UTILITY ----------
+    function goToday() {
+        document.getElementById('datePicker').value = new Date().toLocaleDateString('sv-SE');
+        onDateChange();
+    }
+
+    function closeModal(modalId) {
+        document.getElementById(modalId).classList.remove('open');
+        if (modalId === 'modalAppointment') selectedPatientId = null;
+        if (modalId === 'modalEditAppointment') currentEditApptId = null;
+        if (modalId === 'modalDeleteConfirm') pendingDeleteId = null;
+    }
+
+    // Esponi funzioni globali
+    window.openPasswordModal = openPasswordModal;
+    window.submitPassword = submitPassword;
+    window.onDateChange = onDateChange;
+    window.onRoomChange = onRoomChange;
+    window.goToday = goToday;
+    window.openAddModal = openAddModal;
+    window.closeModal = closeModal;
+    window.searchPatients = searchPatients;
+    window.saveSelectedPatient = saveSelectedPatient;
+    window.createAndBook = createAndBook;
+    window.openEditModal = openEditModal;
+    window.saveEditAppointment = saveEditAppointment;
+    window.openDeleteModal = openDeleteModal;
+    window.confirmDelete = confirmDelete;
+
+    // Avvio automatico: aspetta che il modulo ES6 abbia caricato il config
+    window.addEventListener('configReady', () => {
+        autoLogin();
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Planning - Login</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .login-container {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 400px;
+            width: 90%;
+        }
+        .login-header { text-align: center; margin-bottom: 30px; }
+        .login-icon { font-size: 48px; margin-bottom: 10px; }
+        .login-title { margin: 0 0 8px 0; color: #0f172a; font-size: 24px; }
+        .login-subtitle { margin: 0; color: #64748b; font-size: 14px; }
+        .password-input {
+            width: 100%; padding: 12px;
+            border: 2px solid #e2e8f0; border-radius: 8px;
+            font-size: 16px; margin-bottom: 16px; transition: border-color 0.2s;
+        }
+        .password-input:focus { outline: none; border-color: #3b82f6; }
+        .checkbox-container { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+        .checkbox-input { width: 18px; height: 18px; cursor: pointer; }
+        .checkbox-label { font-size: 13px; color: #64748b; cursor: pointer; }
+        .login-button {
+            width: 100%; padding: 14px;
+            background: #3b82f6; color: white;
+            border: none; border-radius: 8px;
+            font-size: 16px; font-weight: bold;
+            cursor: pointer; transition: background 0.2s;
+        }
+        .login-button:hover { background: #2563eb; }
+        .login-button:active { transform: scale(0.98); }
+        .error-message { margin-top: 12px; color: #ef4444; font-size: 13px; text-align: center; display: none; }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <div class="login-icon">🔐</div>
+            <h2 class="login-title">Hospital Planning</h2>
+            <p class="login-subtitle">Inserisci la password per accedere</p>
+        </div>
+        <input type="password" id="passwordInput" class="password-input"
+            placeholder="Password (minimo 6 caratteri)" autofocus>
+        <div class="checkbox-container">
+            <input type="checkbox" id="savePasswordCheck" class="checkbox-input">
+            <label for="savePasswordCheck" class="checkbox-label">
+                Salva password su questo browser (locale)
+            </label>
+        </div>
+        <button id="loginButton" class="login-button">🔓 ACCEDI</button>
+        <div id="errorMessage" class="error-message"></div>
+    </div>
+
+    <script>
+        // Rileva se il device è mobile — usa SOLO userAgent, più affidabile
+        function isMobile() {
+            return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        }
+
+        function redirectToApp() {
+            window.location.href = isMobile() ? 'mobile.html' : 'planner.html';
+        }
+
+        // Controlla se c'è già una password salvata → redirect diretto
+        const savedPassword = localStorage.getItem('app_password');
+        if (savedPassword) {
+            redirectToApp();
+        }
+
+        const passwordInput = document.getElementById('passwordInput');
+        const loginButton = document.getElementById('loginButton');
+        const errorMessage = document.getElementById('errorMessage');
+        const savePasswordCheck = document.getElementById('savePasswordCheck');
+
+        function attemptLogin() {
+            const password = passwordInput.value;
+            if (!password) {
+                errorMessage.textContent = '❌ Inserisci la password';
+                errorMessage.style.display = 'block';
+                return;
+            }
+            if (password.length < 6) {
+                errorMessage.textContent = '❌ Password troppo corta (minimo 6 caratteri)';
+                errorMessage.style.display = 'block';
+                return;
+            }
+            if (savePasswordCheck.checked) {
+                localStorage.setItem('app_password', password);
+            } else {
+                sessionStorage.setItem('app_password', password);
+            }
+            redirectToApp();
+        }
+
+        passwordInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') attemptLogin(); });
+        loginButton.addEventListener('click', attemptLogin);
+        passwordInput.addEventListener('input', () => { errorMessage.style.display = 'none'; });
+    </script>
+</body>
+</html>

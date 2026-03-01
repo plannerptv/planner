@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <meta charset="UTF-8">
+    <title>ADMIN OSPEDALE - Gestione Pro v11.3</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <link rel="stylesheet" href="css/admin-style.css">
+</head>
+
+<body>
+
+    <div class="header">
+        <h2>🏥 ADMIN DASHBOARD</h2>
+        <a href="planner.html" class="btn btn-green">📅 TORNA AL CALENDARIO</a>
+    </div>
+
+    <div class="tabs">
+        <div class="tab active" onclick="openTab(event, 'appuntamenti')">📅 APPUNTAMENTI</div>
+        <div class="tab" onclick="openTab(event, 'pazienti')">👥 PAZIENTI</div>
+        <div class="tab" onclick="openTab(event, 'stanze')">🏘️ STANZE</div>
+        <div class="tab" onclick="openTab(event, 'noteGiorno')">📝 NOTE DEL GIORNO</div>
+        <div class="tab" onclick="openTab(event, 'importAccess')">📂 IMPORTA ACCESS</div>
+        <div class="tab" onclick="openTab(event, 'tools')">🛠️ BACKUP & CONFIG</div>
+    </div>
+
+    <div id="appuntamenti" class="panel active">
+        <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <h3 style="margin:0;">Lista Appuntamenti <span id="apptCount"
+                        style="font-size:11px; color:var(--blue);"></span></h3>
+                <button class="btn btn-green" onclick="exportExcel()">📊 SCARICA .XLSX</button>
+            </div>
+            <div class="filter-row">
+                <div class="filter-col" style="flex:2"><label>CERCA COGNOME</label><input type="text" id="apptSearch"
+                        onkeyup="renderAppointments()" placeholder="..."></div>
+                <div class="filter-col"><label>DAL</label><input type="date" id="filterStart"
+                        onchange="renderAppointments()"></div>
+                <div class="filter-col"><label>AL</label><input type="date" id="filterEnd"
+                        onchange="renderAppointments()"></div>
+                <div class="filter-col"><label>STANZA</label><select id="filterRoom" onchange="renderAppointments()">
+                        <option value="">-- TUTTE --</option>
+                    </select></div>
+            </div>
+            <div style="height: 600px; overflow-y: auto;">
+                <table id="apptTable" class="excel-table">
+                    <thead>
+                        <tr>
+                            <th>DATA</th>
+                            <th>SLOT</th>
+                            <th>STANZA</th>
+                            <th>PAZIENTE</th>
+                            <th>NOTE</th>
+                            <th>DEL</th>
+                        </tr>
+                    </thead>
+                    <tbody id="apptTbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="pazienti" class="panel">
+        <div style="display:grid; grid-template-columns: 350px 1fr; gap:20px;">
+            <div class="card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                    <h3 id="pFormTitle" style="margin:0;">👤 Scheda Paziente</h3>
+                    <button class="btn btn-green" onclick="newPaziente()" style="padding:8px 14px;">➕ NUOVO
+                        PAZIENTE</button>
+                </div>
+                <input type="hidden" id="pEditId">
+                <label>Cognome *</label><input type="text" id="pLastName" style="text-transform:uppercase;"
+                    oninput="this.value=this.value.toUpperCase()">
+                <label>Nome *</label><input type="text" id="pFirstName" style="text-transform:uppercase;"
+                    oninput="this.value=this.value.toUpperCase()">
+                <label>Data Nascita</label><input type="date" id="pDob">
+                <label>Telefono</label><input type="tel" id="pTel">
+                <div style="display:flex; gap:5px; margin-top:10px;">
+                    <button id="pBtnSave" class="btn btn-blue" style="flex:1" onclick="savePaziente()">💾 SALVA</button>
+                    <button id="pBtnCancel" class="btn btn-gray" style="display:none;" onclick="cancelEdit()">✕
+                        ANNULLA</button>
+                </div>
+            </div>
+            <div class="card">
+                <h3>Anagrafica <span id="pazCount" style="font-size:12px; color:var(--blue);"></span>
+                </h3>
+                <input type="text" id="pSearch" onkeyup="renderPazienti()" placeholder="Cerca cognome...">
+                <div style="height: 500px; overflow-y: auto;">
+                    <table id="pazientiTable" class="excel-table">
+                        <thead>
+                            <tr>
+                                <th>PAZIENTE</th>
+                                <th>NASCITA</th>
+                                <th>TEL</th>
+                                <th>AZIONI</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pazTbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="stanze" class="panel">
+        <div style="display:grid; grid-template-columns: 350px 1fr; gap:20px;">
+            <div class="card">
+                <h3 id="catFormTitle">🏘️ Configura Stanza</h3>
+                <input type="hidden" id="editCatId">
+                <label>Nome Stanza *</label><input type="text" id="catName">
+                <label>Colore Etichetta</label><input type="color" id="catColor" value="#3b82f6"
+                    style="height:40px; padding:0;">
+                <div style="display:flex; gap:5px; margin-top:10px;">
+                    <button class="btn btn-blue" style="flex:1" onclick="saveCategory()">SALVA</button>
+                    <button id="btnCancelEditCat" class="btn btn-gray" style="display:none;"
+                        onclick="resetCategoryForm()">ANNULLA</button>
+                </div>
+            </div>
+            <div class="card">
+                <h3>Elenco Stanze</h3>
+                <table id="categoriesTable" class="excel-table">
+                    <thead>
+                        <tr>
+                            <th>NOME</th>
+                            <th>COLORE</th>
+                            <th style="text-align:center">AZIONI</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <!-- ═══════════════ NOTE DEL GIORNO ═══════════════ -->
+    <div id="noteGiorno" class="panel">
+        <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <h3 style="margin:0;">📝 Note del Giorno <span id="noteCount" style="font-size:11px; color:var(--blue);"></span></h3>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <label style="font-size:11px; font-weight:700; color:#64748b; margin:0;">DATA:</label>
+                    <input type="date" id="noteDatePicker" onchange="loadNoteForDate()" style="padding:6px 10px; border-radius:6px; border:1px solid #e2e8f0; font-weight:bold;">
+                    <button class="btn btn-blue" onclick="loadAllNotes()" style="padding:6px 14px;">📋 TUTTE LE NOTE</button>
+                </div>
+            </div>
+
+            <!-- VISTA SINGOLA DATA -->
+            <div id="noteSingleView">
+                <div style="background:#fffbeb; border:1.5px solid #f59e0b; border-radius:8px; padding:16px; min-height:120px;">
+                    <div style="font-size:11px; font-weight:700; color:#b45309; text-transform:uppercase; margin-bottom:8px;">📅 <span id="noteSingleLabel">Seleziona una data</span></div>
+                    <div id="noteSingleContent" style="font-size:14px; color:#1e293b; line-height:1.6; white-space:pre-wrap;">&nbsp;</div>
+                </div>
+            </div>
+
+            <!-- VISTA TUTTE LE NOTE -->
+            <div id="noteAllView" style="display:none; margin-top:16px;">
+                <div style="margin-bottom:12px; display:flex; gap:8px; align-items:center;">
+                    <input type="text" id="noteSearch" onkeyup="filterNotes()" placeholder="🔍 Cerca nel testo delle note..." style="flex:1; padding:8px 12px; border-radius:6px; border:1px solid #e2e8f0;">
+                    <button class="btn btn-gray" onclick="closeAllNotes()" style="padding:6px 14px;">✕ CHIUDI</button>
+                </div>
+                <div style="height:520px; overflow-y:auto;">
+                    <table class="excel-table">
+                        <thead>
+                            <tr>
+                                <th style="width:110px;">DATA</th>
+                                <th>TESTO NOTA</th>
+                            </tr>
+                        </thead>
+                        <tbody id="noteAllTbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="importAccess" class="panel">
+        <div class="card">
+            <h3>📂 IMPORTA DATI ORIGINALI ACCESS (Ripristino Orari)</h3>
+            <p style="margin-bottom:20px; color:#64748b;">
+                Carica il file <b>tblAppointments.xlsx</b> originale per ripristinare gli orari corretti degli
+                appuntamenti.<br>
+                Il sistema cercherà di abbinare gli appuntamenti esistenti e aggiornerà solo l'orario
+                (<b>oraInizio</b>).
+            </p>
+
+            <div style="display:flex; gap:20px; align-items:flex-start; margin-bottom:20px;">
+                <!-- COLONNA 1: Timeslots -->
+                <div
+                    style="flex:1; padding:15px; border:2px dashed #cbd5e1; border-radius:8px; text-align:center; background:#f8fafc;">
+                    <h4 style="margin:0 0 10px 0; color:#475569;">1️⃣ Carica 'tblTimeSlots.xlsx'</h4>
+                    <p style="font-size:11px; color:#64748b; margin-bottom:10px;">Serve per capire gli orari (RowNo).
+                    </p>
+                    <input type="file" id="slotsFile" accept=".xlsx, .xls"
+                        style="display:none;">
+                    <button class="btn btn-gray" onclick="document.getElementById('slotsFile').click()"
+                        style="width:100%;">📂 SELEZIONA SLOTS</button>
+                    <div id="slotsFileName" style="margin-top:5px; font-weight:bold; color:#059669; font-size:11px;">
+                    </div>
+                </div>
+
+                <!-- COLONNA 2: Appuntamenti -->
+                <div style="flex:1; padding:15px; border:2px dashed #cbd5e1; border-radius:8px; text-align:center;">
+                    <h4 style="margin:0 0 10px 0; color:#475569;">2️⃣ Carica 'tblAppointments.xlsx'</h4>
+                    <p style="font-size:11px; color:#64748b; margin-bottom:10px;">Il file con gli appuntamenti.</p>
+                    <input type="file" id="accessFile" accept=".xlsx, .xls"
+                        style="display:none;">
+                    <button class="btn btn-blue" onclick="document.getElementById('accessFile').click()"
+                        style="width:100%;">📂 SELEZIONA APPUNTAMENTI</button>
+                    <div id="accessFileName" style="margin-top:5px; font-weight:bold; color:#2563eb; font-size:11px;">
+                    </div>
+                </div>
+            </div>
+
+            <div style="flex:2;">
+                <div id="accessStats"
+                    style="display:none; background:#f0f9ff; padding:15px; border-radius:8px; border:1px solid #bae6fd; margin-bottom:20px;">
+                    <h4 style="margin:0 0 10px 0; color:#0369a1;">Anteprima e Azioni</h4>
+                    <div>Righe Appuntamenti: <strong id="accTotal">0</strong></div>
+                    <div>Mappa Orari Caricata: <strong id="slotsStatus">NO ❌</strong></div>
+
+                    <button class="btn btn-green" id="btnImportAccess"
+                        style="margin-top:15px; width:100%;">
+                        🚀 AVVIA IMPORT V8 (WIPE + REIMPORT)
+                    </button>
+                    <button class="btn btn-blue" id="btnDryRun"
+                        style="margin-top:10px; width:100%;">
+                        🔍 TEST ANTEPRIMA (senza scrivere nel DB)
+                    </button>
+                </div>
+            </div>
+
+            <div id="accessPreview" style="max-height:400px; overflow:auto; border:1px solid #e2e8f0; display:none;">
+                <table class="excel-table" id="accessPreviewTable">
+                    <thead></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <!-- LOG LIVE -->
+            <div id="importLogContainer"
+                style="margin-top:20px; display:block !important; border: 2px solid #3b82f6; padding: 10px; background: whitesmoke;">
+                <h4 style="margin:0 0 5px 0;">📜 LOG ESECUZIONE LIVE (In attesa...)</h4>
+                <div id="importLog"
+                    style="background:#1e293b; color:#10b981; font-family:monospace; padding:15px; border-radius:8px; height:200px; overflow-y:auto; font-size:12px;">
+                    Waiting for process...
+                </div>
+                <button id="btnDownloadLog"
+                    style="margin-top:8px; padding:6px 12px; background:#3b82f6; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px;">
+                    📥 Scarica Log
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="tools" class="panel">
+        <div class="backup-grid">
+            <div class="backup-item" style="border-color:var(--blue); background:#eff6ff;">
+                <h4>📅 SOLO APPUNTAMENTI</h4>
+                <p>Salva/Ripristina appuntamenti (GiroVisite) e note giornaliere (dailyNotes). Non tocca i pazienti
+                    o le
+                    stanze.</p>
+                <div style="display:flex; gap:5px; justify-content:center;">
+                    <button class="btn btn-blue" onclick="backupData('appointments')">⬇️ EXPORT</button>
+                    <button class="btn btn-red" onclick="triggerRestore('appointments')">⬆️ IMPORT</button>
+                </div>
+            </div>
+            <div class="backup-item" style="border-color:var(--green); background:#f0fdf4;">
+                <h4>👥 SOLO PAZIENTI</h4>
+                <p>Salva/Ripristina solo l'anagrafica. Utile per aggiornare le liste nomi.</p>
+                <div style="display:flex; gap:5px; justify-content:center;">
+                    <button class="btn btn-green" onclick="backupData('patients')">⬇️ EXPORT</button>
+                    <button class="btn btn-red" onclick="triggerRestore('patients')">⬆️ IMPORT</button>
+                </div>
+            </div>
+            <div class="backup-item" style="border-color:var(--orange); background:#fff7ed;">
+                <h4>⚙️ SOLO CONFIGURAZIONE</h4>
+                <p>Salva/Ripristina Stanze e Regole Orarie. Ideale per copiare la struttura.</p>
+                <div style="display:flex; gap:5px; justify-content:center;">
+                    <button class="btn btn-orange" onclick="backupData('config')">⬇️ EXPORT</button>
+                    <button class="btn btn-red" onclick="triggerRestore('config')">⬆️ IMPORT</button>
+                </div>
+            </div>
+        </div>
+        <div class="card" style="margin-top:20px; border:2px solid #8b5cf6; background:#faf5ff;">
+            <h3 style="color:#7c3aed; justify-content:center;">🔓 ESPORTA PAZIENTI IN CHIARO (EXCEL)</h3>
+            <p style="text-align:center; margin-bottom:15px;">Esporta l'anagrafica pazienti in formato Excel <strong>NON criptato</strong>.<br>
+            Utile per cambiare password di criptazione o migrare su altro sistema.</p>
+            <div style="text-align:center;">
+                <button class="btn btn-green" onclick="exportPatientsDecrypted()" style="padding:10px 20px; font-size:13px;">
+                    📊 SCARICA PAZIENTI DECRIPTATI (.XLSX)
+                </button>
+            </div>
+            <p style="margin-top:10px; font-size:11px; color:#dc2626; text-align:center;">
+                ⚠️ ATTENZIONE: Il file conterrà nomi e cognomi in chiaro. Conservalo in luogo sicuro!
+            </p>
+        </div>
+        <!-- ══════════════════════════════════════════════════════════ -->
+        <!-- SEZIONE ARCHIVIO STORICO                                   -->
+        <!-- ══════════════════════════════════════════════════════════ -->
+        <div class="card" style="margin-top:20px; border:2px solid #0891b2; background:#f0f9ff;">
+            <h3 style="color:#0e7490; justify-content:center;">🗄️ ARCHIVIO STORICO</h3>
+            <p style="text-align:center; margin-bottom:10px;">
+                Gli appuntamenti più vecchi di <strong id="archivioMesiLabel">…</strong> mesi vengono spostati automaticamente nello storico.<br>
+                <span style="font-size:11px; color:#64748b;">La migrazione avviene in automatico (max 1 volta a settimana). Puoi forzarla manualmente qui.</span>
+            </p>
+            <div style="display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap; margin-bottom:12px;">
+                <label style="font-size:13px; font-weight:600; color:#0e7490;">Mesi da tenere attivi:</label>
+                <input type="number" id="archivioMesiInput" min="1" max="36" value="6"
+                    style="width:70px; padding:6px; border:1px solid #0891b2; border-radius:6px; text-align:center; font-size:14px; font-weight:700;">
+                <button class="btn" onclick="salvaParametroArchivio()"
+                    style="background:#0891b2; color:white; padding:7px 14px; border-radius:6px;">💾 Salva parametro</button>
+            </div>
+            <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+                <button class="btn" onclick="eseguiMigrazioneManuale()"
+                    style="background:#0e7490; color:white; padding:9px 18px; border-radius:6px; font-weight:700;">
+                    🚀 AVVIA MIGRAZIONE ORA
+                </button>
+                <button class="btn" onclick="caricaStatoArchivio()"
+                    style="background:#64748b; color:white; padding:9px 18px; border-radius:6px;">
+                    🔄 Aggiorna stato
+                </button>
+            </div>
+            <div id="archivioStatus" style="margin-top:12px; padding:10px; border-radius:8px; font-size:13px; min-height:40px; background:#e0f2fe; color:#0c4a6e; text-align:center;">
+                ⏳ Caricamento stato archivio…
+            </div>
+        </div>
+
+        <div class="card" style="margin-top:20px; border:2px dashed #cbd5e1; text-align:center;">
+            <h3 style="color:var(--dark); justify-content:center;">📦 BACKUP COMPLETO (TUTTO)</h3>
+            <p>Salva o Ripristina l'intero database in un colpo solo.</p>
+            <button class="btn btn-gray" onclick="backupData('all')">⬇️ SCARICA DATABASE COMPLETO (.JSON)</button>
+            <button class="btn btn-red" onclick="triggerRestore('all')">⬆️ RIPRISTINA DATABASE COMPLETO</button>
+        </div>
+        <input type="file" id="restoreFile" accept=".json" style="display:none;" onchange="processRestoreFile()">
+        <input type="hidden" id="restoreMode">
+    </div>
+
+
+    <!-- CACHE BUSTING AUTOMATICO — stesso sistema del planner -->
+    <script>
+        const s1 = document.createElement('script');
+        s1.src = 'duplicate-checker.js?t=' + Date.now();
+        document.head.appendChild(s1);
+
+        // admin-script è un modulo ES6, va caricato dopo che s1 è pronto
+        s1.onload = () => {
+            const s2 = document.createElement('script');
+            s2.type = 'module';
+            s2.src = 'js/admin-script.js?t=' + Date.now();
+            document.head.appendChild(s2);
+        };
+    </script>
+
+</body>
+</html>
