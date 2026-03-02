@@ -45,8 +45,8 @@
                 style="background:#f59e0b; color:white; padding:3px 6px; font-size:11px; margin-right:80px;"
                 onclick="openSearchModal()">🔍 CERCA</button>
             <button class="btn-action"
-                style="background:#0891b2; color:white; padding:3px 6px; font-size:11px;"
-                onclick="openStoricoModal()" title="Consulta appuntamenti archiviati">🗄️ STORICO</button>
+    style="background:#0891b2; color:white; padding:3px 6px; font-size:11px;"
+    onclick="openStoricoModal()" title="Consulta appuntamenti archiviati (più vecchi di 3 mesi)">🗄️ ARCHIVIO</button>
 
             <!-- BLOCCO DATE -->
             <button class="btn-action" style="background:#334155; color:white; padding:3px 6px; font-size:11px;"
@@ -302,7 +302,7 @@
     <div id="modalHistory" class="modal-history">
         <div class="hist-box">
             <div class="hist-header">
-                <span>STORICO PAZIENTE</span>
+                <span>ARCHIVIO</span>
                 <button onclick="document.getElementById('modalHistory').classList.remove('open')"
                     style="background:none;border:none;color:white;font-size:20px;cursor:pointer;">✕</button>
             </div>
@@ -586,7 +586,7 @@
     <div id="modalStorico" class="modal-history" style="z-index:9999;">
         <div class="modal-content" style="flex-direction:column; width:94vw; max-width:900px; max-height:88vh;">
             <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:#0e7490; color:white; border-radius:8px 8px 0 0;">
-                <h3 style="margin:0; font-size:16px;">🗄️ ARCHIVIO STORICO</h3>
+                <h3 style="margin:0; font-size:16px;">🗄️ ARCHIVIO (dati più vecchi di 3 mesi)</h3>
                 <button onclick="chiudiStorico()" style="background:rgba(255,255,255,0.2); border:none; color:white; font-size:18px; cursor:pointer; border-radius:4px; padding:2px 8px;">✕</button>
             </div>
             <div style="padding:14px 16px; background:#f0f9ff; border-bottom:1px solid #bae6fd;">
@@ -613,7 +613,7 @@
             </div>
             <div style="flex:1; overflow-y:auto; padding:10px 16px;">
                 <div id="storicoStatus" style="text-align:center; color:#64748b; font-size:13px; padding:20px;">
-                    Seleziona un intervallo di date e clicca <strong>Carica</strong> per consultare lo storico.
+                <strong>ATTENZIONE:</strong> Questa ricerca consulta l'archivio storico (dati più vecchi di 3 mesi).<br>Se cerchi appuntamenti recenti, usa il pulsante <strong>🔍 CERCA</strong> in alto.<br><br>Seleziona un intervallo di date e clicca <strong>Carica</strong>.
                 </div>
                 <table id="storicoTable" style="display:none; width:100%; border-collapse:collapse; font-size:13px;">
                     <thead>
@@ -629,7 +629,7 @@
                 </table>
             </div>
             <div style="padding:8px 16px; background:#e0f2fe; border-radius:0 0 8px 8px; font-size:11px; color:#0c4a6e; text-align:center;">
-                📌 Dati in sola lettura — per modifiche contatta l'amministratore
+                📌 ARCHIVIO STORICO — Dati più vecchi di 3 mesi in sola lettura
             </div>
         </div>
     </div>

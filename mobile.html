@@ -9,11 +9,9 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     <script type="module">
-        // Carica config da file esterno e la rende disponibile globalmente
         import { firebaseConfig, ROOT } from './firebase-config.js';
         window._firebaseConfig = firebaseConfig;
         window._ROOT = ROOT;
-        // Avvia app appena config è pronta
         window.dispatchEvent(new Event('configReady'));
     </script>
     <style>
@@ -35,25 +33,23 @@
             flex-direction: column;
             width: 100%;
         }
-
-        /* HEADER COMPATTO MA CON PULSANTI GRANDI */
         .header-bar {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             background: white;
             border-radius: 40px;
-            padding: 10px 12px;
-            margin-bottom: 12px;
+            padding: 6px 10px;
+            margin-bottom: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             flex-shrink: 0;
         }
         .header-bar button, .header-bar .date-input {
-            font-size: 1rem;
-            padding: 12px 10px;
+            font-size: 0.95rem;
+            padding: 6px 10px;
             border-radius: 30px;
             border: 1px solid #cbd5e1;
-            height: 48px;
+            height: 38px;
             background: white;
         }
         .header-bar button {
@@ -63,46 +59,62 @@
             font-weight: 600;
             white-space: nowrap;
             cursor: pointer;
-            min-width: 48px;
-        }
-        .header-bar button.small {
-            background: #334155;
+            min-width: 38px;
+            width: auto;
+            margin-bottom: 0;
+            min-height: unset;
         }
         .header-bar .date-input {
             flex: 3;
-            font-size: 1rem;
+            font-size: 0.95rem;
         }
         .status-dot {
-            width: 20px;
-            height: 20px;
+            width: 16px;
+            height: 16px;
             border-radius: 50%;
             display: inline-block;
-            margin-left: 4px;
+            margin-left: 2px;
             flex-shrink: 0;
         }
         .status-dot.green { background: #22c55e; box-shadow: 0 0 0 3px #86efac; }
         .status-dot.red { background: #ef4444; box-shadow: 0 0 0 3px #fecaca; }
         .status-dot.yellow { background: #eab308; box-shadow: 0 0 0 3px #fef08a; }
 
-        /* Selezione stanza - grande e tappabile */
         .room-selector {
-            margin-bottom: 12px;
-        }
-        .room-selector select {
-            width: 100%;
-            padding: 14px 16px;
-            border-radius: 40px;
-            border: 1px solid #cbd5e1;
-            font-size: 1.1rem;
-            background: white;
-            appearance: none;
-            background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%230f172a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
-            background-repeat: no-repeat;
-            background-position: right 16px center;
-            background-size: 20px;
-        }
+    margin-bottom: 8px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+.room-selector select {
+    width: 60%;
+    padding: 8px 32px 8px 14px;
+    border-radius: 40px;
+    border: 1px solid #cbd5e1;
+    font-size: 0.95rem;
+    background: white;
+    appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%230f172a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 16px;
+    height: 40px;
+}
+.room-selector .search-btn {
+    flex-shrink: 0;
+    width: 44px;
+    height: 36px;
+    padding: 0;
+    font-size: 1rem;
+    background: #0369a1;
+    color: white;
+    border: none;
+    border-radius: 40px;
+    cursor: pointer;
+    min-height: unset;
+    margin-bottom: 0;
+}
 
-        /* Colonna singola stanza */
         .room-column {
             background: #f8fafc;
             border-radius: 24px;
@@ -115,26 +127,26 @@
         .room-header {
             background: #0f172a;
             color: white;
-            padding: 16px;
+            padding: 10px 16px;
             font-weight: 700;
-            font-size: 1.3rem;
+            font-size: 1.1rem;
             text-align: center;
             border-bottom: 3px solid #94a3b8;
         }
         .slot-list {
-            padding: 8px;
+            padding: 6px;
             overflow-y: auto;
             flex: 1;
             background: #ffffff;
         }
         .slot-item {
             background: #f8fafc;
-            border-radius: 16px;
-            margin-bottom: 8px;
-            padding: 14px 16px;
-            border-left: 8px solid #cbd5e1;
-            font-size: 1rem;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-radius: 12px;
+            margin-bottom: 5px;
+            padding: 8px 12px;
+            border-left: 6px solid #cbd5e1;
+            font-size: 0.95rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
             position: relative;
             cursor: pointer;
             border: 1px solid #e2e8f0;
@@ -153,14 +165,14 @@
         .slot-time {
             font-weight: 700;
             color: #334155;
-            font-size: 0.9rem;
-            margin-bottom: 4px;
+            font-size: 0.78rem;
+            margin-bottom: 2px;
         }
         .slot-patient {
             font-weight: 700;
             color: #0f172a;
             text-transform: uppercase;
-            font-size: 1.1rem;
+            font-size: 0.95rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -168,42 +180,40 @@
         .delete-icon {
             color: #b91c1c;
             cursor: pointer;
-            font-size: 1.5rem;
-            padding: 0 8px;
+            font-size: 1.3rem;
+            padding: 0 6px;
         }
         .delete-icon:active { background: #fee2e2; border-radius: 50%; }
         .badge-clear {
             background: #fee2e2;
             color: #b91c1c;
-            font-size: 0.8rem;
-            padding: 4px 8px;
+            font-size: 0.75rem;
+            padding: 2px 6px;
             border-radius: 20px;
-            margin-left: 8px;
+            margin-left: 6px;
         }
         .slot-note {
-            font-size: 0.9rem;
+            font-size: 0.82rem;
             color: #64748b;
             font-style: italic;
-            margin-top: 6px;
+            margin-top: 3px;
         }
 
-        /* Note giornaliere */
         .daily-notes-box {
             background: #fffbeb;
             border: 2px solid #f59e0b;
             border-radius: 24px;
-            padding: 12px;
-            margin-top: 12px;
+            padding: 10px;
+            margin-top: 8px;
         }
         #dailyNoteInput {
             width: 100%;
             border: 1px solid #fbbf24;
             border-radius: 40px;
-            padding: 14px 16px;
-            font-size: 1rem;
+            padding: 10px 14px;
+            font-size: 0.95rem;
         }
 
-        /* Modali */
         .modal {
             display: none;
             position: fixed;
@@ -248,6 +258,25 @@
             width: 100%; 
             margin-bottom: 12px; 
         }
+        #modalSearch .modal-content {
+    padding: 16px;
+    border-radius: 20px;
+}
+#modalSearch .modal-content h3 {
+    font-size: 1.1rem;
+    margin-bottom: 10px;
+}
+#modalSearch input {
+    padding: 10px 14px;
+    margin-bottom: 8px;
+}
+#modalSearch .search-results {
+    max-height: 60vh;
+    font-size: 0.9rem;
+}
+#modalSearch .sr-item {
+    padding: 10px 12px;
+}
         button { 
             background: #b91c1c; 
             color: white; 
@@ -262,22 +291,20 @@
 </head>
 <body>
 <div class="container">
-    <!-- HEADER CON PULSANTI GRANDI -->
     <div class="header-bar no-print">
-        <button onclick="openPasswordModal()" style="background:#334155; width:auto; font-size:1.2rem;">🔐</button>
+        <button onclick="openPasswordModal()" style="background:#334155; font-size:1.1rem;">🔐</button>
         <input type="date" id="datePicker" class="date-input" value="">
-        <button onclick="goToday()" class="small" style="background:#334155; font-size:1rem;">📆</button>
+        <button onclick="goToday()" style="background:#334155; font-size:0.95rem;">📆</button>
         <span id="statusDot" class="status-dot yellow" title="Stato"></span>
     </div>
 
-    <!-- Selezione stanza - grande -->
-    <div class="room-selector no-print">
-        <select id="roomSelect" onchange="onRoomChange()">
-            <option value="">Caricamento stanze...</option>
-        </select>
-    </div>
+   <div class="room-selector no-print">
+    <button class="search-btn" onclick="openSearchModal()">🔍</button>
+    <select id="roomSelect" onchange="onRoomChange()">
+        <option value="">Caricamento stanze...</option>
+    </select>
+</div>
 
-    <!-- Area principale: colonna stanza e note -->
     <div id="viewSection" style="display: none; flex:1; display: flex; flex-direction: column; min-height:0;">
         <div class="room-column">
             <div class="room-header" id="roomHeader">Seleziona una stanza</div>
@@ -289,7 +316,7 @@
     </div>
 </div>
 
-<!-- MODALE PASSWORD (grande) -->
+<!-- MODALE PASSWORD -->
 <div id="modalPassword" class="modal no-print">
     <div class="modal-content">
         <span class="close-btn" onclick="closeModal('modalPassword')">&times;</span>
@@ -299,22 +326,28 @@
     </div>
 </div>
 
+<!-- MODALE CERCA -->
+<div id="modalSearch" class="modal no-print">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeModal('modalSearch')">&times;</span>
+        <h3>🔍 Cerca paziente</h3>
+        <input type="text" id="searchGlobalInput" placeholder="Cognome o nome..." oninput="searchGlobal()">
+        <div id="searchGlobalResults" class="search-results"></div>
+    </div>
+</div>
+
 <!-- MODALE AGGIUNTA APPUNTAMENTO -->
 <div id="modalAppointment" class="modal no-print">
     <div class="modal-content">
         <span class="close-btn" onclick="closeModal('modalAppointment')">&times;</span>
         <h3>➕ Nuovo appuntamento</h3>
         <div id="slotInfo" style="background:#f1f5f9; padding:12px; border-radius:16px; margin-bottom:12px;"></div>
-
         <label style="font-weight:600;">Cerca paziente</label>
         <input type="text" id="searchPatient" placeholder="Cognome o nome..." oninput="searchPatients()">
         <div id="searchResults" class="search-results"></div>
-
         <label style="font-weight:600; margin-top:12px;">Note appuntamento</label>
         <input type="text" id="appointmentNote" placeholder="Inserisci note...">
-
         <button id="saveSelectedPatientBtn" onclick="saveSelectedPatient()" style="background:#2563eb;" disabled>💾 SALVA PAZIENTE SELEZIONATO</button>
-
         <hr>
         <label style="font-weight:600;">Oppure crea nuovo paziente</label>
         <input type="text" id="newL" placeholder="Cognome*">
@@ -332,16 +365,13 @@
         <span class="close-btn" onclick="closeModal('modalEditAppointment')">&times;</span>
         <h3>✏️ Modifica appuntamento</h3>
         <div id="editInfo" style="background:#f1f5f9; padding:12px; border-radius:16px; margin-bottom:12px;"></div>
-
         <label style="font-weight:600;">Note appuntamento</label>
         <input type="text" id="editNote" placeholder="Note...">
-
         <label style="font-weight:600; margin-top:12px;">Dati paziente</label>
         <input type="text" id="editL" placeholder="Cognome">
         <input type="text" id="editF" placeholder="Nome">
         <input type="text" id="editDob" placeholder="Data nascita">
         <input type="text" id="editPhone" placeholder="Telefono">
-
         <button onclick="saveEditAppointment()" style="background:#2563eb;">💾 SALVA MODIFICHE</button>
         <button onclick="closeModal('modalEditAppointment')" style="background:#64748b;">Annulla</button>
     </div>
@@ -359,18 +389,14 @@
 </div>
 
 <script>
-    // ---------- CONFIGURAZIONE FIREBASE (letta da firebase-config.js) ----------
-    // firebaseConfig e ROOT vengono iniettati dal modulo ES6 sopra
     let firebaseConfig = null;
     let ROOT = "";
 
-    // Variabili globali
     let db, auth, passwordKey = "";
     let patientsMap = {};
     let roomsMap = [];
     let rulesMap = {};
     let currentAppointments = [];
-    let dailyNotes = {};
     let selectedSlot = null;
     let pendingDeleteId = null;
     let currentDateStr = "";
@@ -378,7 +404,6 @@
     let selectedPatientId = null;
     let noteTimeout = null;
 
-    // ---------- FUNZIONI CRITTOGRAFIA ----------
     function decrypt(encrypted) {
         if (!encrypted) return "";
         if (typeof encrypted === 'string' && !encrypted.startsWith('U2FsdGVk')) return encrypted;
@@ -391,8 +416,17 @@
         if (!text) return text;
         return CryptoJS.AES.encrypt(text, passwordKey).toString();
     }
+   function decodeHTML(str) {
+    if (!str) return '';
+    const txt = document.createElement('textarea');
+    txt.innerHTML = str;
+    const decoded = txt.value;
+    // Strippa eventuali tag HTML rimasti
+    const div = document.createElement('div');
+    div.innerHTML = decoded;
+    return div.textContent || div.innerText || '';
+}
 
-    // ---------- FUNZIONI REGOLE (identiche alla versione precedente) ----------
     function matchesMonthlyOccurrence(date, weekdays, occurrences) {
         const wd = date.getDay() === 0 ? 7 : date.getDay();
         if (!weekdays.includes(wd)) return false;
@@ -484,7 +518,6 @@
         }));
     }
 
-    // ---------- GESTIONE PASSWORD ----------
     function openPasswordModal() {
         document.getElementById('passwordInput').value = '';
         document.getElementById('modalPassword').classList.add('open');
@@ -498,18 +531,15 @@
     }
 
     function autoLogin() {
-        // Legge password salvata dall'index.html
         const pw = sessionStorage.getItem('app_password') || localStorage.getItem('app_password');
         if (pw) {
             passwordKey = pw;
             initApp();
         } else {
-            // Nessuna password trovata → torna al login
             window.location.href = '../index.html';
         }
     }
 
-    // ---------- INIZIALIZZAZIONE ----------
     function initApp() {
         const statusDot = document.getElementById('statusDot');
         statusDot.className = 'status-dot yellow';
@@ -524,16 +554,14 @@
                     return Promise.all([
                         db.ref(basePath + '/pazienti').once('value'),
                         db.ref(basePath + '/tblCategories').once('value'),
-                        db.ref(basePath + '/RegoleAttive').once('value'),
-                        db.ref(basePath + '/dailyNotes').once('value')
+                        db.ref(basePath + '/RegoleAttive').once('value')
                     ]);
                 })
-                .then(([paz, cat, rule, note]) => {
+                .then(([paz, cat, rule]) => {
                     patientsMap = paz.val() || {};
                     const cats = cat.val() || {};
                     roomsMap = Object.entries(cats).map(([id, c]) => ({ id, name: c.name || 'Senza nome', color: c.color || '#64748b' })).filter(r => r.name);
                     rulesMap = rule.val() || {};
-                    dailyNotes = note.val() || {};
 
                     const select = document.getElementById('roomSelect');
                     select.innerHTML = '<option value="">Seleziona stanza</option>';
@@ -546,37 +574,32 @@
 
                     document.getElementById('viewSection').style.display = 'flex';
                     statusDot.className = 'status-dot green';
-                    
+
                     const today = new Date().toLocaleDateString('sv-SE');
                     document.getElementById('datePicker').value = today;
-                    
                     document.getElementById('datePicker').addEventListener('change', onDateChange);
-                    
+
                     if (roomsMap.length > 0) {
                         selectedRoomId = roomsMap[0].id;
                         select.value = selectedRoomId;
                     }
-                    
                     onDateChange();
                 })
-                .catch(err => { 
-                    alert(err.message); 
+                .catch(err => {
+                    alert(err.message);
                     statusDot.className = 'status-dot red';
                 });
         } catch (e) { alert(e.message); }
     }
 
-    // ---------- CAMBIO DATA ----------
     function onDateChange() {
         clearTimeout(noteTimeout);
-        
         const newDate = document.getElementById('datePicker').value;
         if (!newDate) return;
         if (newDate === currentDateStr) return;
         currentDateStr = newDate;
-        
         const basePath = ROOT ? '/' + ROOT : '';
-        
+
         db.ref(basePath + '/GiroVisite')
             .orderByChild('data')
             .equalTo(currentDateStr)
@@ -595,12 +618,11 @@
             .once('value')
             .then(snap => {
                 const encrypted = snap.val() || '';
-                document.getElementById('dailyNoteInput').value = decrypt(encrypted) || '';
+                document.getElementById('dailyNoteInput').value = decodeHTML(decrypt(encrypted));
             })
             .catch(err => console.error(err));
     }
 
-    // ---------- CAMBIO STANZA ----------
     function onRoomChange() {
         const select = document.getElementById('roomSelect');
         selectedRoomId = select.value;
@@ -612,16 +634,12 @@
         }
     }
 
-    // ---------- RENDER STANZA ----------
     function renderRoom() {
         if (!selectedRoomId || !roomsMap.length || !currentDateStr) return;
-        
         const room = roomsMap.find(r => String(r.id) === String(selectedRoomId));
         if (!room) return;
-        
         document.getElementById('roomHeader').textContent = room.name;
         document.getElementById('roomHeader').style.background = room.color;
-        
         const slots = getSlotsForRoom(room.id, new Date(currentDateStr + 'T12:00:00'));
         let html = '';
         slots.forEach((slot, idx) => {
@@ -662,7 +680,6 @@
         document.getElementById('slotList').innerHTML = html;
     }
 
-    // ---------- MODALE AGGIUNTA ----------
     function openAddModal(roomId, rowNo, ora) {
         selectedSlot = { roomId, rowNo, ora };
         const roomName = roomsMap.find(r=>String(r.id)===String(roomId))?.name || roomId;
@@ -709,8 +726,8 @@
         db.ref(basePath + '/GiroVisite').push({
             data: currentDateStr, stanzaID: selectedSlot.roomId, rowNo: selectedSlot.rowNo,
             oraInizio: selectedSlot.ora || null, pazienteID: selectedPatientId, pazienteNote: note || null
-        }).then(() => { 
-            closeModal('modalAppointment'); 
+        }).then(() => {
+            closeModal('modalAppointment');
             onDateChange();
         }).catch(err => alert(err.message));
     }
@@ -741,13 +758,12 @@
                 data: currentDateStr, stanzaID: selectedSlot.roomId, rowNo: selectedSlot.rowNo,
                 oraInizio: selectedSlot.ora || null, pazienteID: newId, pazienteNote: note || null
             });
-        }).then(() => { 
-            closeModal('modalAppointment'); 
+        }).then(() => {
+            closeModal('modalAppointment');
             onDateChange();
         }).catch(err => alert(err.message));
     }
 
-    // ---------- MODALE MODIFICA ----------
     let currentEditApptId = null;
     function openEditModal(apptId) {
         const appt = currentAppointments.find(a => a.id === apptId);
@@ -785,12 +801,8 @@
             const newDob = document.getElementById('editDob').value.trim();
             const newPhone = document.getElementById('editPhone').value.trim();
             const updates = {};
-            if (newL && newL !== decrypt(p.lastName_enc || p.lastName || p.l || '')) {
-                updates.lastName_enc = encrypt(newL);
-            }
-            if (newF && newF !== decrypt(p.firstName_enc || p.firstName || p.f || '')) {
-                updates.firstName_enc = encrypt(newF);
-            }
+            if (newL && newL !== decrypt(p.lastName_enc || p.lastName || p.l || '')) updates.lastName_enc = encrypt(newL);
+            if (newF && newF !== decrypt(p.firstName_enc || p.firstName || p.f || '')) updates.firstName_enc = encrypt(newF);
             if (newDob !== (p.dob || '')) updates.dob = newDob || null;
             if (newPhone !== (p.telefono || '')) updates.telefono = newPhone || null;
             if (Object.keys(updates).length > 0) {
@@ -805,7 +817,6 @@
         }).catch(err => alert(err.message));
     }
 
-    // ---------- ELIMINA ----------
     function openDeleteModal(apptId) {
         pendingDeleteId = apptId;
         const appt = currentAppointments.find(a => a.id === apptId);
@@ -825,14 +836,13 @@
         if (!pendingDeleteId) return;
         const basePath = ROOT ? '/' + ROOT : '';
         db.ref(basePath + '/GiroVisite/' + pendingDeleteId).remove()
-            .then(() => { 
-                closeModal('modalDeleteConfirm'); 
+            .then(() => {
+                closeModal('modalDeleteConfirm');
                 onDateChange();
             })
             .catch(err => alert(err.message));
     }
 
-    // ---------- NOTE GIORNO ----------
     document.getElementById('dailyNoteInput').addEventListener('input', function() {
         clearTimeout(noteTimeout);
         noteTimeout = setTimeout(() => {
@@ -846,7 +856,59 @@
         }, 800);
     });
 
-    // ---------- UTILITY ----------
+    function openSearchModal() {
+        document.getElementById('searchGlobalInput').value = '';
+        document.getElementById('searchGlobalResults').innerHTML = '';
+        document.getElementById('modalSearch').classList.add('open');
+    }
+
+    function searchGlobal() {
+        const q = document.getElementById('searchGlobalInput').value.trim().toLowerCase();
+        const resDiv = document.getElementById('searchGlobalResults');
+        if (!q) { resDiv.innerHTML = ''; return; }
+
+        const matches = Object.entries(patientsMap).map(([id, p]) => {
+            const nome = decrypt(p.firstName_enc || p.firstName || p.f || '');
+            const cogn = decrypt(p.lastName_enc || p.lastName || p.l || '');
+            return { id, nome, cogn, full: (cogn + ' ' + nome).toLowerCase(), rev: (nome + ' ' + cogn).toLowerCase() };
+        }).filter(p => p.full.includes(q) || p.rev.includes(q)).slice(0, 20);
+
+        if (!matches.length) { resDiv.innerHTML = '<div class="sr-item">Nessun risultato</div>'; return; }
+
+        resDiv.innerHTML = '<div style="padding:8px; color:#64748b; font-size:0.85rem;">Caricamento...</div>';
+
+        const basePath = ROOT ? '/' + ROOT : '';
+        db.ref(basePath + '/GiroVisite').once('value').then(snap => {
+            const all = snap.val() || {};
+            resDiv.innerHTML = '';
+            matches.forEach(m => {
+                const appts = Object.entries(all)
+                    .filter(([, a]) => String(a.pazienteID) === String(m.id))
+                    .sort((a, b) => (b[1].data || '').localeCompare(a[1].data || ''))
+                    .slice(0, 5);
+
+                const d = document.createElement('div');
+                d.className = 'sr-item';
+                let html = `<strong>${m.cogn} ${m.nome}</strong>`;
+                if (appts.length) {
+                    html += '<div style="font-size:0.85rem; color:#64748b; margin-top:4px;">';
+                    appts.forEach(([, a]) => {
+                        const room = roomsMap.find(r => String(r.id) === String(a.stanzaID));
+                        html += `📅 ${a.data} — ${room?.name || a.stanzaID} slot ${a.rowNo}`;
+                        if (a.oraInizio) html += ` (${a.oraInizio})`;
+                        if (a.pazienteNote) html += ` — 📝 ${a.pazienteNote}`;
+                        html += '<br>';
+                    });
+                    html += '</div>';
+                } else {
+                    html += '<div style="font-size:0.85rem; color:#94a3b8;">Nessun appuntamento</div>';
+                }
+                d.innerHTML = html;
+                resDiv.appendChild(d);
+            });
+        });
+    }
+
     function goToday() {
         document.getElementById('datePicker').value = new Date().toLocaleDateString('sv-SE');
         onDateChange();
@@ -859,7 +921,6 @@
         if (modalId === 'modalDeleteConfirm') pendingDeleteId = null;
     }
 
-    // Esponi funzioni globali
     window.openPasswordModal = openPasswordModal;
     window.submitPassword = submitPassword;
     window.onDateChange = onDateChange;
@@ -874,8 +935,9 @@
     window.saveEditAppointment = saveEditAppointment;
     window.openDeleteModal = openDeleteModal;
     window.confirmDelete = confirmDelete;
+    window.openSearchModal = openSearchModal;
+    window.searchGlobal = searchGlobal;
 
-    // Avvio automatico: aspetta che il modulo ES6 abbia caricato il config
     window.addEventListener('configReady', () => {
         autoLogin();
     });

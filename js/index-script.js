@@ -2565,11 +2565,17 @@ window.doSearchHistory = async function (txt) {
 
     resDiv.innerHTML = '<div style="padding:10px;color:#64748b;">🔍 Ricerca appuntamenti in corso...</div>';
 
-    // B. Scarica TUTTI gli appuntamenti UNA TANTUM (get, non listener)
+    // B. Per ogni paziente trovato, cerca in GiroVisite (query filtrata per pazienteID)
     try {
-        const snap = await get(ref(db, ROOT + '/GiroVisite'));
-        const raw = snap.val();
-        const sourceList = raw ? Object.entries(raw).map(([id, v]) => ({ ...v, id })) : [];
+        let allResults = [];
+        for (const p of pazTrovati) {
+            const qAttivo = query(ref(db, ROOT + '/GiroVisite'), orderByChild('pazienteID'), equalTo(String(p.id)));
+            const snapAttivo = await get(qAttivo);
+            if (snapAttivo.exists()) {
+                allResults.push(...Object.entries(snapAttivo.val()).map(([id, v]) => ({ ...v, id })));
+            }
+        }
+        const sourceList = allResults;
         
         resDiv.innerHTML = '';
         let count = 0;
